@@ -51,12 +51,18 @@ def clear_screen() -> None:
 class Agent:
     directions = (UP, RIGHT, DOWN, LEFT)
 
-    def __init__(self, agent_id: Optional[str] = None, position: Tuple[int, int] = (0, 0), field_of_view: int = 3):
-        self.agent_id = agent_id if agent_id is not None else str(
-            uuid.uuid4())  # Assign a random UUID if no ID is provided
+    def __init__(self,
+                 agent_id: Optional[str] = None,
+                 position: Tuple[int, int] = (0, 0),
+                 field_of_view: int = 3,
+                 visibility: list[list[str]] = None):
+        self.agent_id = agent_id if agent_id is not None \
+            else str(uuid.uuid4())  # Assign a random UUID if no ID is provided
         self.position = position
         self.field_of_view = field_of_view
-        self.visibility = [[EMPTY] * field_of_view for _ in range(field_of_view)]
+
+        self.visibility = visibility if visibility is not None\
+            else [[EMPTY] * field_of_view for _ in range(field_of_view)]
         self.visibility[field_of_view // 2][field_of_view // 2] = AGENT + '-' + self.agent_id
 
         # initial direction, battery, has_ball
@@ -102,8 +108,7 @@ class Playground:
                  num_orbs: int = 5,
                  field_of_view: int = 3):
         self.dimension = dimension
-        self.xAxis = dimension[0]
-        self.yAxis = dimension[1]
+        self.xAxis, self.yAxis = dimension
         self.grid = [[EMPTY] * self.xAxis for _ in range(self.yAxis)]
 
         self.agent_start_positions: Set[Tuple[int, int]] = set()  # Store unique agent positions
@@ -112,7 +117,10 @@ class Playground:
         self.num_orbs = num_orbs
         self.field_of_view = field_of_view
 
-    def add_agent(self, agent_id: Optional[str] = None, position: Optional[Tuple[int, int]] = None) -> None:
+    def add_agent(self,
+                  agent_id: Optional[str] = None,
+                  position: Optional[Tuple[int, int]] = (0, 0),
+                  field_of_view: Optional[int] = None) -> bool:
         """
         Adds an agent to the specified position on the grid.
 
@@ -120,15 +128,26 @@ class Playground:
             agent_id: An integer representing the agent's ID. If not provided, a random UUID will be assigned.
             position: A list containing two integers representing row and column indices.
                       If not provided, the agent will be placed at the default position (0, 0).
+            field_of_view: An integer representing the field of view. If not provided, the default field of view will be used.
+
+        Returns:
+            A boolean value indicating whether the operation was successful. Returns True if the agent was added successfully,
+            and False if the operation failed (for example, if the desired position is already occupied).
         """
-        if position is None:
-            position = (0, 0)  # Default position
+        if position in self.agent_start_positions:
+            print(f"Position {position} is already occupied. Please choose a different position.")
+            return False
+
         self.agent_start_positions.add(position)  # Save the unique position
 
         x, y = position
-        agent = Agent(agent_id=agent_id, position=position, field_of_view=self.field_of_view)
+        if field_of_view is None:
+            field_of_view = self.field_of_view
+        agent = Agent(agent_id=agent_id, position=position, field_of_view=field_of_view)
         self.agents.append(agent)  # Add the new agent to the list of agents
         self.grid[x][y] = AGENT + '-' + agent.agent_id  # Agent
+
+        return True
 
     def get_agent_by_id(self, agent_id: str) -> Optional[Agent]:
         """
@@ -173,11 +192,12 @@ class Playground:
         """
         Returns the status of the cells around the given position within the specified field of view.
 
-        Args: position: A tuple containing two integers representing row and column indices. field_of_view: An
-        integer representing the field of view. Value of the field of view must be an odd number; Otherwise,
-        it will be considered as the smallest number greater than the desired number.
+        Args:
+            position: A tuple containing two integers representing row and column indices.
+            field_of_view: An integer representing the field of view. Value of the field of view must be an odd number;
+                            Otherwise, it will be considered as the smallest number greater than the desired number.
 
-        :returns:
+        Returns:
             A list of lists representing the status of each cell.
         """
         if field_of_view is None:
@@ -261,11 +281,11 @@ if __name__ == '__main__':
 
     playground.agents[0].has_ball = True
 
-    playground.agents[0].position = (1, 1)
-    playground.grid[1][1] = AGENT + '-' + playground.agents[0].agent_id + (
-        (',' + (ORB if playground.grid[1][1] == ORB else HOLE if playground.grid[1][1] == HOLE else '')) if
-        playground.grid[1][1] != EMPTY else '')
-    playground.grid[0][0] = EMPTY
+    # playground.agents[0].position = (1, 1)
+    # playground.grid[1][1] = AGENT + '-' + playground.agents[0].agent_id + (
+    #     (',' + (ORB if playground.grid[1][1] == ORB else HOLE if playground.grid[1][1] == HOLE else '')) if
+    #     playground.grid[1][1] != EMPTY else '')
+    # playground.grid[0][0] = EMPTY
 
     playground.plot()
     playground.perceive_agent(agent=playground.agents[0])
