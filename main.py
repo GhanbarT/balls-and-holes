@@ -96,8 +96,16 @@ class Agent:
 
 class Playground:
 
-    def __init__(self, num_holes: int = 5, num_orbs: int = 5, field_of_view: int = 3):
-        self.grid = [[EMPTY] * 5 for _ in range(5)]
+    def __init__(self,
+                 dimension: Tuple[int, int] = (5, 5),
+                 num_holes: int = 5,
+                 num_orbs: int = 5,
+                 field_of_view: int = 3):
+        self.dimension = dimension
+        self.xAxis = dimension[0]
+        self.yAxis = dimension[1]
+        self.grid = [[EMPTY] * self.xAxis for _ in range(self.yAxis)]
+
         self.agent_start_positions: Set[Tuple[int, int]] = set()  # Store unique agent positions
         self.agents: List[Agent] = []  # List to store all agents
         self.num_holes = num_holes
@@ -143,7 +151,8 @@ class Playground:
 
         The algorithm ensures that each position is unique and not already occupied by an agent.
         """
-        available_positions = [(i, j) for i in range(5) for j in range(5) if (i, j) not in self.agent_start_positions]
+        available_positions = [(i, j) for i in range(self.yAxis) for j in range(self.xAxis) if
+                               (i, j) not in self.agent_start_positions]
         random.shuffle(available_positions)
 
         # Place holes
@@ -198,14 +207,14 @@ class Playground:
 
     def plot(self, legends: bool = False) -> None:
         clear_screen()
-        print('╔══' + '══╦══'.join(['═'] * 5) + '══╗')
+        print('╔══' + '══╦══'.join(['═'] * self.xAxis) + '══╗')
 
         for i, row in enumerate(self.grid):
             if i > 0:
-                print('╠══' + '══╬══'.join(['═'] * 5) + '══╣')
+                print('╠══' + '══╬══'.join(['═'] * self.xAxis) + '══╣')
             print('║' + '║'.join([f'{self.get_icon(factor)}' for factor in row]) + '║')
 
-        print('╚══' + '══╩══'.join(['═'] * 5) + '══╝')
+        print('╚══' + '══╩══'.join(['═'] * self.xAxis) + '══╝')
         if legends:
             print(
                 f'----Legends----'
@@ -258,7 +267,7 @@ if __name__ == '__main__':
         playground.grid[1][1] != EMPTY else '')
     playground.grid[0][0] = EMPTY
 
-    playground.plot(legends=True)
+    playground.plot()
     playground.perceive_agent(agent=playground.agents[0])
-    print(playground.agents[0].visibility)
+    # print(playground.agents[0].visibility)
     # playground.print_info()
