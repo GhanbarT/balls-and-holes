@@ -11,6 +11,18 @@ HAVING_ORB = bcolors.YELLOW
 ORB_CELL = bcolors.GRAY_HIGHLIGHT
 HOLE_CELL = bcolors.GREEN_HIGHLIGHT
 
+BOX_TOP_LEFT = '╚'
+BOX_TOP_RIGHT = '╝'
+BOX_BOTTOM_LEFT = '╔'
+BOX_BOTTOM_RIGHT = '╗'
+BOX_HORIZONTAL = '═'
+BOX_VERTICAL = '║'
+BOX_VERTICAL_RIGHT = '╠'
+BOX_VERTICAL_LEFT = '╣'
+BOX_HORIZONTAL_DOWN = '╦'
+BOX_HORIZONTAL_UP = '╩'
+BOX_CROSS = '╬'
+
 EMPTY = 'empty'
 AGENT = 'agent'
 HOLE = 'hole'
@@ -61,7 +73,7 @@ class Agent:
         self.position = position
         self.field_of_view = field_of_view
 
-        self.visibility = visibility if visibility is not None\
+        self.visibility = visibility if visibility is not None \
             else [[EMPTY] * field_of_view for _ in range(field_of_view)]
         self.visibility[field_of_view // 2][field_of_view // 2] = AGENT + '-' + self.agent_id
 
@@ -99,6 +111,12 @@ class Agent:
     def see(self, visibility: list[list[str]]) -> None:
         self.visibility = visibility
 
+    def action(self, environment):
+        pass
+
+    def get_label(self):
+        return AGENT + '-' + self.agent_id
+
 
 class Playground:
 
@@ -112,57 +130,29 @@ class Playground:
         self.grid = [[EMPTY] * self.xAxis for _ in range(self.yAxis)]
 
         self.agent_start_positions: Set[Tuple[int, int]] = set()  # Store unique agent positions
-        self.agents: List[Agent] = []  # List to store all agents
         self.num_holes = num_holes
         self.num_orbs = num_orbs
         self.field_of_view = field_of_view
 
-    def add_agent(self,
-                  agent_id: Optional[str] = None,
-                  position: Optional[Tuple[int, int]] = (0, 0),
-                  field_of_view: Optional[int] = None) -> bool:
+    def add_agent(self, agent: Agent) -> bool:
         """
-        Adds an agent to the specified position on the grid.
+        Adds an agent to the playground.
 
         Args:
-            agent_id: An integer representing the agent's ID. If not provided, a random UUID will be assigned.
-            position: A list containing two integers representing row and column indices.
-                      If not provided, the agent will be placed at the default position (0, 0).
-            field_of_view: An integer representing the field of view. If not provided, the default field of view will be used.
+            agent: An Agent object. The agent should already have an ID, position, and field of view.
 
         Returns:
             A boolean value indicating whether the operation was successful. Returns True if the agent was added successfully,
             and False if the operation failed (for example, if the desired position is already occupied).
         """
-        if position in self.agent_start_positions:
-            print(f"Position {position} is already occupied. Please choose a different position.")
+        if agent.position in self.agent_start_positions:
             return False
 
-        self.agent_start_positions.add(position)  # Save the unique position
-
-        x, y = position
-        if field_of_view is None:
-            field_of_view = self.field_of_view
-        agent = Agent(agent_id=agent_id, position=position, field_of_view=field_of_view)
-        self.agents.append(agent)  # Add the new agent to the list of agents
-        self.grid[x][y] = AGENT + '-' + agent.agent_id  # Agent
+        self.agent_start_positions.add(agent.position)  # Save the unique position
+        x, y = agent.position
+        self.grid[x][y] = agent.get_label()
 
         return True
-
-    def get_agent_by_id(self, agent_id: str) -> Optional[Agent]:
-        """
-        Returns the agent with the specified ID.
-
-        Args:
-            agent_id: An integer representing the agent's ID.
-
-        Returns:
-            The Agent object with the specified ID, or None if no such agent exists.
-        """
-        for agent in self.agents:
-            if agent.agent_id == agent_id:
-                return agent
-        return None
 
     def place_holes_and_orbs(self) -> None:
         """
@@ -217,22 +207,14 @@ class Playground:
 
         return surrounding_cells
 
-    def perceive_agent(self, agent: Agent):
-        surrounding_cells = self.get_surrounding_cells(position=agent.position, field_of_view=agent.field_of_view)
-        agent.see(surrounding_cells)
-
-    def perceive_agents(self) -> None:
-        for agent in self.agents:
-            self.perceive_agent(agent)
-
-    def plot(self, legends: bool = False) -> None:
+    def plot(self, agents: List[Agent], legends: bool = False) -> None:
         clear_screen()
         print('╔══' + '══╦══'.join(['═'] * self.xAxis) + '══╗')
 
         for i, row in enumerate(self.grid):
             if i > 0:
                 print('╠══' + '══╬══'.join(['═'] * self.xAxis) + '══╣')
-            print('║' + '║'.join([f'{self.get_icon(factor)}' for factor in row]) + '║')
+            print('║' + '║'.join([f'{self.get_icon(agents, factor)}' for factor in row]) + '║')
 
         print('╚══' + '══╩══'.join(['═'] * self.xAxis) + '══╝')
         if legends:
@@ -241,6 +223,101 @@ class Playground:
                 f'\n-> {HAVING_ORB}Having Orb{bcolors.ENDC}'
                 f'\n-> {ORB_CELL}on Orb Cell{bcolors.ENDC}'
                 f'\n-> {HOLE_CELL}on Hole Cell{bcolors.ENDC}')
+
+    @staticmethod
+    def get_icon(agents: List[Agent], factor: str) -> str:
+        if factor == EMPTY or factor == OBSTACLE:
+            return icons[factor]
+
+        if factor.startswith(AGENT):
+            factors = factor.split(',')
+            agent_id = factors[0][len(AGENT) + 1:]
+            agent = Controller.find_agent(agents, agent_id)
+            text_color = bcolors.YELLOW if agent.has_ball else bcolors.ENDC
+
+            if len(factors) > 1:
+                text_color += bcolors.GRAY_HIGHLIGHT if factors[1] == ORB else bcolors.GREEN_HIGHLIGHT
+
+            return text_color + arrows[agent.direction] + icons[AGENT] + agent_id[0:2] + bcolors.ENDC
+
+        if factor == HOLE or factor == ORB:
+            return icons[factor] + ' ' if random.choice([True, False]) else ' ' + icons[factor]
+
+
+class Controller:
+    def __init__(self, playground: Playground):
+        self.playground = playground
+        self.agents: List[Agent] = []  # List to store all agents
+
+    def create_agent(self,
+                     agent_id: Optional[str] = None,
+                     position: Optional[Tuple[int, int]] = (0, 0),
+                     field_of_view: Optional[int] = 3) -> bool:
+        """
+        Creates a new agent and adds it to the playground.
+
+        Args:
+            agent_id: A string representing the agent's ID. If not provided, a random UUID will be assigned.
+            position: A tuple containing two integers representing row and column indices.
+                      If not provided, the agent will be placed at the default position (0, 0).
+            field_of_view: An integer representing the field of view. If not provided, the default field of view will be used.
+
+        Returns:
+            A boolean value indicating whether the operation was successful. Returns True if the agent was created and added successfully,
+            and False if the operation failed (for example, if the desired position is already occupied).
+        """
+        agent = Agent(agent_id=agent_id, position=position, field_of_view=field_of_view)
+        if self.playground.add_agent(agent):
+            self.agents.append(agent)  # Add the new agent to the list of agents
+            return True
+
+        return False
+
+    def get_agent_by_id(self, agent_id: str) -> Optional[Agent]:
+        """
+        Returns the agent with the specified ID.
+
+        Args:
+            agent_id: An integer representing the agent's ID.
+
+        Returns:
+            The Agent object with the specified ID, or None if no such agent exists.
+        """
+        for agent in self.agents:
+            if agent.agent_id == agent_id:
+                return agent
+        return None
+
+    @staticmethod
+    def find_agent(agents: List[Agent], agent_id: str) -> Optional[Agent]:
+        """
+        Returns the agent with the specified ID from a list of agents.
+
+        Args:
+            agents: A list of Agent objects.
+            agent_id: A string representing the agent's ID.
+
+        Returns:
+            The Agent object with the specified ID, or None if no such agent exists in the provided list.
+        """
+        for agent in agents:
+            if agent.agent_id == agent_id:
+                return agent
+        return None
+
+    def perceive_agent(self, agent: Agent):
+        surrounding_cells = self.playground.get_surrounding_cells(position=agent.position,
+                                                                  field_of_view=agent.field_of_view)
+        agent.see(surrounding_cells)
+
+    def perceive_agents(self) -> None:
+        for agent in self.agents:
+            self.perceive_agent(agent)
+
+    def next_round(self):
+        # Due to the fact that we will have only one agent at the moment, we do not have priority in performing the operation
+        for agent in self.agents:
+            agent.action(self.playground)
 
     def print_info(self):
         print('╔═' + '═' * UUID_LEN + '═╦═' + '═' * 6 + '═╗')
@@ -254,32 +331,14 @@ class Playground:
 
         print('╚═' + '═' * UUID_LEN + '═╩═' + '═' * 6 + '═╝')
 
-    def get_icon(self, factor: str) -> str:
-        if factor == EMPTY or factor == OBSTACLE:
-            return icons[factor]
-
-        if factor.startswith(AGENT):
-            factors = factor.split(',')
-            agent_id = factors[0][len(AGENT) + 1:]
-            agent = self.get_agent_by_id(agent_id)
-            text_color = bcolors.YELLOW if agent.has_ball else bcolors.ENDC
-
-            if len(factors) > 1:
-                text_color += bcolors.GRAY_HIGHLIGHT if factors[1] == ORB else bcolors.GREEN_HIGHLIGHT
-
-            return text_color + arrows[agent.direction] + icons[AGENT] + agent_id[0:2] + bcolors.ENDC
-
-        if factor == HOLE or factor == ORB:
-            return icons[factor] + ' ' if random.choice([True, False]) else ' ' + icons[factor]
-
 
 if __name__ == '__main__':
     playground = Playground()
-    playground.add_agent()
-    playground.add_agent(position=(2, 2))
+    controller = Controller(playground)
+    controller.create_agent()
     playground.place_holes_and_orbs()
 
-    playground.agents[0].has_ball = True
+    # controller.agents[0].has_ball = True
 
     # playground.agents[0].position = (1, 1)
     # playground.grid[1][1] = AGENT + '-' + playground.agents[0].agent_id + (
@@ -287,7 +346,7 @@ if __name__ == '__main__':
     #     playground.grid[1][1] != EMPTY else '')
     # playground.grid[0][0] = EMPTY
 
-    playground.plot()
-    playground.perceive_agent(agent=playground.agents[0])
+    playground.plot(agents=controller.agents)
+    controller.perceive_agent(agent=controller.agents[0])
     # print(playground.agents[0].visibility)
     # playground.print_info()
