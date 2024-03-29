@@ -85,12 +85,15 @@ class Controller:
 
     def print_info(self) -> None:
         print('╔═' + '═' * UUID_LEN + ('═╦═' + '═' * 16) * 2 + '═╗')
-        print('║ Agent ID ' + ' ' * (UUID_LEN - len('Agent ID')) + '║' + 'Current Position' + ' ' * (18 - len('Current Position')) + '║' + 'Target Position' + ' ' * (18 - len('Target Position')) + '║')
+        print('║ Agent ID ' + ' ' * (UUID_LEN - len('Agent ID')) + '║' + ' Current Position ' + ' ' * (
+                    16 - len('Current Position')) + '║' + ' Target Position ' + ' ' * (
+                          16 - len('Target Position')) + '║')
         print('╠═' + '═' * UUID_LEN + ('═╬═' + '═' * 16) * 2 + '═╣')
 
         for i, agent in enumerate(self.agents):
             if i > 0:
                 print('╠═' + '═' * UUID_LEN + ('═╬═' + '═' * 16) * 2 + '═╣')
-            print('║ ' + f'{agent.agent_id} ║ {agent.position}  ║ {agent.target_position}' + ' ║')
+            print(
+                '║ ' + f'{agent.agent_id} ║ {str(agent.position).ljust(16)} ║ {str(agent.target_position).ljust(16)}' + ' ║')
 
         print('╚═' + '═' * UUID_LEN + ('═╩═' + '═' * 16) * 2 + '═╝')

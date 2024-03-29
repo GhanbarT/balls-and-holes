@@ -89,9 +89,9 @@ class Playground:
         x, y = position
         surrounding_cells = []
 
-        for i in range(x - field_of_view // 2, x + field_of_view // 2 + 1):
+        for i in range(y - field_of_view // 2, y + field_of_view // 2 + 1):
             row = []
-            for j in range(y - field_of_view // 2, y + field_of_view // 2 + 1):
+            for j in range(x - field_of_view // 2, x + field_of_view // 2 + 1):
                 if i < 0 or j < 0 or i >= len(self.grid) or j >= len(self.grid[0]):
                     row.append('out')
                 else:
@@ -100,7 +100,35 @@ class Playground:
 
         return surrounding_cells
 
-    def is_valid_position(self, position: Tuple[int, int]):
+    def get_cell_state(self, position: Tuple[int, int]) -> str:
+        x, y = position
+        return self.grid[y][x]
+
+    def agent_exit_cell(self, agent: 'Agent') -> None:
+        current_cell_state = self.get_cell_state(agent.position)
+
+        x, y = agent.position
+        self.grid[y][x] = current_cell_state.replace(agent.get_label(), '').replace(',,', ',')
+
+        if self.grid[y][x] == '':
+            self.grid[y][x] = EMPTY
+        # if last character is ',' remove that
+        if self.grid[y][x][-1] == ',':
+            self.grid[y][x] = self.grid[y][x][:-1]
+
+    def agent_enter_cell(self, position: Tuple[int, int], agent: 'Agent') -> bool:
+        if not self.is_valid_position(position):
+            return False
+        current_cell_state = self.get_cell_state(position)
+
+        x, y = position
+        self.agent_exit_cell(agent)
+        self.grid[y][x] = current_cell_state + ',' + agent.get_label()
+        return True
+
+    def is_valid_position(self, position: Tuple[int, int]) -> bool:
+        if not position:
+            return False
         # Check if position is within grid boundaries
         x, y = position
         if x < 0 or x >= self.xAxis:
@@ -112,15 +140,20 @@ class Playground:
         return True
 
     def plot(self, agents: List['Agent'], legends: bool = False) -> None:
-        clear_screen()
-        print('╔══' + '══╦══'.join(['═'] * self.xAxis) + '══╗')
+        output = ['╔══' + '══╦══'.join(['═'] * self.xAxis) + '══╗']
 
         for i, row in enumerate(self.grid):
             if i > 0:
-                print('╠══' + '══╬══'.join(['═'] * self.xAxis) + '══╣')
-            print('║' + '║'.join([f'{self.get_icon(agents, factor)}' for factor in row]) + '║')
+                output.append('╠══' + '══╬══'.join(['═'] * self.xAxis) + '══╣')
+            output.append('║' + '║'.join([f'{self.get_icon(agents, factor)}' for factor in row]) + '║')
 
-        print('╚══' + '══╩══'.join(['═'] * self.xAxis) + '══╝')
+        output.append('╚══' + '══╩══'.join(['═'] * self.xAxis) + '══╝')
+
+        # Join all the strings in the list into a single string with a newline character between each string
+        output_str = '\n'.join(output)
+
+        clear_screen()
+        print(output_str)
         if legends:
             print(
                 f'----Legends----'
@@ -129,20 +162,22 @@ class Playground:
                 f'\n-> {HOLE_CELL}on Hole Cell{bcolors.ENDC}')
 
     @staticmethod
-    def get_icon(agents: List['Agent'], factor: str) -> str:
+    def get_icon(agents: List['Agent'], factor: str, random_space=False) -> str:
         if factor == EMPTY or factor == OBSTACLE:
             return icons[factor]
 
-        if factor.startswith(AGENT):
+        if AGENT in factor:
             factors = factor.split(',')
-            agent_id = factors[0][len(AGENT) + 1:]
+
+            # FIXME: fix AGENT and other factors generally
+            agent_id = factors[-1][len(AGENT) + 1:]
             agent = Controller.find_agent(agents, agent_id)
-            text_color = bcolors.YELLOW if agent.has_ball else bcolors.ENDC
+            text_color = HAVING_ORB if agent.has_ball else ''
 
             if len(factors) > 1:
-                text_color += bcolors.GRAY_HIGHLIGHT if factors[1] == ORB else bcolors.GREEN_HIGHLIGHT
+                text_color += ORB_CELL if factors[0] == ORB else (HOLE_CELL if factor[0] == HOLE else '')
 
             return text_color + arrows[agent.direction] + icons[AGENT] + agent_id[0:2] + bcolors.ENDC
 
         if factor == HOLE or factor == ORB or factor == FILLED_HOLE:
-            return icons[factor] + ' ' if random.choice([True, False]) else ' ' + icons[factor]
+            return icons[factor] + ' ' if random.choice([False, random_space]) else ' ' + icons[factor]
