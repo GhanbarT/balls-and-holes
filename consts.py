@@ -2,7 +2,7 @@ import bcolors
 
 UUID_LEN = 36
 
-HAVING_ORB = bcolors.YELLOW
+HAVING_ORB = bcolors.RED
 ORB_CELL = bcolors.GRAY_HIGHLIGHT
 HOLE_CELL = bcolors.GREEN_HIGHLIGHT
 
