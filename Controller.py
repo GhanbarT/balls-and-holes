@@ -84,16 +84,15 @@ class Controller:
             agent.action(self.playground)
 
     def print_info(self) -> None:
-        print('╔═' + '═' * UUID_LEN + ('═╦═' + '═' * 16) * 2 + '═╗')
-        print('║ Agent ID ' + ' ' * (UUID_LEN - len('Agent ID')) + '║' + ' Current Position ' + ' ' * (
-                    16 - len('Current Position')) + '║' + ' Target Position ' + ' ' * (
-                          16 - len('Target Position')) + '║')
-        print('╠═' + '═' * UUID_LEN + ('═╬═' + '═' * 16) * 2 + '═╣')
+        print('╔═' + '═' * UUID_LEN + ('═╦═' + '═' * 16) * 3 + '═╗')
+        print('║ Agent ID ' + ' ' * (UUID_LEN - len('Agent ID')) + '║' + ' Current Position '.ljust(
+            16) + '║' + ' Target Position '.ljust(16) + ' ║' + ' Battery '.ljust(17) + ' ║')
+        print('╠═' + '═' * UUID_LEN + ('═╬═' + '═' * 16) * 3 + '═╣')
 
         for i, agent in enumerate(self.agents):
             if i > 0:
-                print('╠═' + '═' * UUID_LEN + ('═╬═' + '═' * 16) * 2 + '═╣')
+                print('╠═' + '═' * UUID_LEN + ('═╬═' + '═' * 16) * 3 + '═╣')
             print(
-                '║ ' + f'{agent.agent_id} ║ {str(agent.position).ljust(16)} ║ {str(agent.target_position).ljust(16)}' + ' ║')
+                '║ ' + f'{agent.agent_id} ║ {str(agent.position).ljust(16)} ║ {str(agent.target_position).ljust(16)} ║ {str(agent.battery).ljust(16)}' + ' ║')
 
-        print('╚═' + '═' * UUID_LEN + ('═╩═' + '═' * 16) * 2 + '═╝')
+        print('╚═' + '═' * UUID_LEN + ('═╩═' + '═' * 16) * 3 + '═╝')

@@ -32,6 +32,7 @@ class Agent:
         self.hole_positions: list[Tuple[int, int]] = list()
         self.orb_positions: list[Tuple[int, int]] = list()
         self.target_position: Optional[Tuple[int, int]] = None
+        self.is_a_random_target: bool = False
         self.current_target_hole_position: Optional[Tuple[int, int]] = None
         self.current_target_orb_position: Optional[Tuple[int, int]] = None
 
@@ -70,17 +71,20 @@ class Agent:
         self.target_position = None
         if self.has_ball:
             return False
+        if environment.pick_orb(self.position):
+            self.has_ball = True
+            return True
+        return False
 
-
-
-        self.has_ball = True
-        return True
-
-    def put_ball_in_hole(self):
-        self.has_ball = False
+    def put_ball_in_hole(self, environment: 'Playground') -> bool:
         self.target_position = None
-        # Implement logic to put the ball in the hole
-        # You can adjust the position based on the current direction
+        if not self.has_ball:
+            return False
+
+        if environment.place_orb(self.position, self):
+            self.has_ball = False
+            return True
+        return False
 
     def see(self, visibility: list[list[str]]) -> None:
         self.visibility = visibility
@@ -102,32 +106,38 @@ class Agent:
                     self.hole_positions.append((env_x, env_y))
 
     def update_target(self, environment: 'Playground') -> None:
-        if self.target_position is not None:
+        if self.target_position is not None and self.is_a_random_target is False:
             return
 
         target_list = self.hole_positions if self.has_ball else self.orb_positions
 
         if len(target_list) > 0:
             self.target_position = self.find_nearest_target(target_list)
-        else:
+            self.is_a_random_target = False
+        elif self.is_a_random_target is False:
             self.target_position = self.find_random_position(environment)
+            self.is_a_random_target = True
 
     def find_nearest_target(self, target_list: list[Tuple[int, int]]) -> Tuple[int, int]:
-        nearest_target = min(target_list, key=lambda pos: AGENT.manhattan_distance(self.position, pos))
+        nearest_target = min(target_list, key=lambda pos: Agent.manhattan_distance(self.position, pos))
         target_list.remove(nearest_target)
         return nearest_target
 
     def find_random_position(self, environment: 'Playground') -> Tuple[int, int]:
         while True:
             random_position = (random.randint(0, self.field_of_view - 1), random.randint(0, self.field_of_view - 1))
+            # FIXME: store and use cell that agent visited instead of start positions
             if random_position not in environment.agent_start_positions:
                 return random_position
 
     def action(self, environment: 'Playground'):
         self.update_item_positions()
+
         if self.target_position == self.position:
-            if self.has_ball:
-                self.put_ball_in_hole()
+            if self.is_a_random_target:
+                self.is_a_random_target = False
+            elif self.has_ball:
+                self.put_ball_in_hole(environment)
                 return
             else:
                 self.take_ball(environment)

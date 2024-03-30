@@ -126,6 +126,30 @@ class Playground:
         self.grid[y][x] = current_cell_state + ',' + agent.get_label()
         return True
 
+    def pick_orb(self, position: Tuple[int, int]) -> bool:
+        if not self.is_valid_position(position):
+            return False
+        current_cell_state = self.get_cell_state(position)
+        if ORB not in current_cell_state:
+            return False
+
+        x, y = position
+        self.grid[y][x] = current_cell_state.replace(ORB, EMPTY)
+        return True
+
+    def place_orb(self, position: Tuple[int, int], agent: 'Agent') -> bool:
+        if not self.is_valid_position(position):
+            return False
+        if not agent.has_ball:
+            return False
+        current_cell_state = self.get_cell_state(position)
+        if HOLE not in current_cell_state:
+            return False
+
+        x, y = position
+        self.grid[y][x] = current_cell_state.replace(HOLE, FILLED_HOLE)
+        return True
+
     def is_valid_position(self, position: Tuple[int, int]) -> bool:
         if not position:
             return False
@@ -140,6 +164,8 @@ class Playground:
         return True
 
     def plot(self, agents: List['Agent'], legends: bool = False) -> None:
+        clear_screen()
+
         output = ['╔══' + '══╦══'.join(['═'] * self.xAxis) + '══╗']
 
         for i, row in enumerate(self.grid):
@@ -152,7 +178,7 @@ class Playground:
         # Join all the strings in the list into a single string with a newline character between each string
         output_str = '\n'.join(output)
 
-        clear_screen()
+        # clear_screen()
         print(output_str)
         if legends:
             print(
@@ -175,7 +201,7 @@ class Playground:
             text_color = HAVING_ORB if agent.has_ball else ''
 
             if len(factors) > 1:
-                text_color += ORB_CELL if factors[0] == ORB else (HOLE_CELL if factor[0] == HOLE else '')
+                text_color += ORB_CELL if factors[0] == ORB else (HOLE_CELL if factors[0] == HOLE else '')
 
             return text_color + arrows[agent.direction] + icons[AGENT] + agent_id[0:2] + bcolors.ENDC
 
