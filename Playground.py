@@ -3,7 +3,8 @@ import random
 
 import bcolors
 from utils import clear_screen
-from consts import EMPTY, HOLE, ORB, HAVING_ORB, ORB_CELL, HOLE_CELL, OBSTACLE, icons, AGENT, arrows, FILLED_HOLE
+from consts import EMPTY, HOLE, ORB, HAVING_ORB, ORB_CELL, HOLE_CELL, OBSTACLE, icons, AGENT, arrows, FILLED_HOLE, UP, \
+    RIGHT, DOWN, LEFT
 
 from Controller import Controller
 
@@ -20,11 +21,13 @@ class Playground:
                  field_of_view: int = 3):
         self.dimension = dimension
         self.xAxis, self.yAxis = dimension
-        self.grid = [[EMPTY] * self.xAxis for _ in range(self.yAxis)]
+        self.grid: list[list[str]] = [[EMPTY] * self.xAxis for _ in range(self.yAxis)]
 
         self.agent_start_positions: Set[Tuple[int, int]] = set()  # Store unique agent positions
         self.num_holes = num_holes
         self.num_orbs = num_orbs
+        self.orb_positions = set()
+
         self.field_of_view = field_of_view
 
     def add_agent(self, agent: 'Agent') -> bool:
@@ -53,7 +56,7 @@ class Playground:
 
         The algorithm ensures that each position is unique and not already occupied by an agent.
         """
-        available_positions = [(i, j) for i in range(self.yAxis) for j in range(self.xAxis) if
+        available_positions = [(i, j) for i in range(self.xAxis) for j in range(self.yAxis) if
                                (i, j) not in self.agent_start_positions]
         random.shuffle(available_positions)
 
@@ -62,14 +65,15 @@ class Playground:
             if len(available_positions) == 0:
                 break
             x, y = available_positions.pop(0)
-            self.grid[x][y] = HOLE
+            self.grid[y][x] = HOLE
 
         # Place orbs
         for i in range(self.num_orbs):
             if len(available_positions) == 0:
                 break
             x, y = available_positions.pop(0)
-            self.grid[x][y] = ORB
+            self.grid[y][x] = ORB
+            self.orb_positions.add((x, y))
 
     def get_surrounding_cells(self, position: Tuple[int, int], field_of_view: int = None) -> List[List[str]]:
         """
@@ -101,10 +105,25 @@ class Playground:
         return surrounding_cells
 
     def get_cell_state(self, position: Tuple[int, int]) -> str:
+        """
+        Returns the state of the cell at the given position.
+
+        Args:
+            position: A tuple containing two integers representing row and column indices.
+
+        Returns:
+            The state of the cell at the given position.
+        """
         x, y = position
         return self.grid[y][x]
 
     def agent_exit_cell(self, agent: 'Agent') -> None:
+        """
+        Updates the state of the cell that the agent is exiting.
+
+        Args:
+            agent: The Agent object that is exiting the cell.
+        """
         current_cell_state = self.get_cell_state(agent.position)
 
         x, y = agent.position
@@ -117,6 +136,17 @@ class Playground:
             self.grid[y][x] = self.grid[y][x][:-1]
 
     def agent_enter_cell(self, position: Tuple[int, int], agent: 'Agent') -> bool:
+        """
+        Updates the state of the cell that the agent is entering.
+
+        Args:
+            position: A tuple containing two integers representing row and column indices.
+            agent: The Agent object that is entering the cell.
+
+        Returns:
+            A boolean value indicating whether the operation was successful. Returns True if the agent entered the cell successfully,
+            and False if the operation failed (for example, if the desired position is not valid).
+        """
         if not self.is_valid_position(position):
             return False
         current_cell_state = self.get_cell_state(position)
@@ -127,17 +157,86 @@ class Playground:
         return True
 
     def pick_orb(self, position: Tuple[int, int]) -> bool:
+        """
+        Picks up an orb from a given position in the playground.
+
+        Args:
+            position: A tuple containing two integers representing row and column indices.
+
+        Returns:
+            A boolean value indicating whether the operation was successful. Returns True if an orb was successfully picked up,
+            and False if the operation failed (for example, if the desired position is not valid or there is no orb at the position).
+        """
         if not self.is_valid_position(position):
             return False
         current_cell_state = self.get_cell_state(position)
         if ORB not in current_cell_state:
             return False
 
-        x, y = position
-        self.grid[y][x] = current_cell_state.replace(ORB, EMPTY)
+        x_old, y_old = position
+        self.grid[y_old][x_old] = current_cell_state.replace(ORB, EMPTY)
+
+        # remove current orb
+        self.orb_positions.remove(position)
         return True
 
+    def switch_orb_positions(self) -> None:
+        """
+        Randomly switches the positions of the orbs in the playground.
+
+        This method iterates over each orb in the playground. For each orb, it randomly selects a direction (up, right, down, or left)
+        and attempts to move the orb in that direction. If the new position is valid and not already occupied by another orb or a filled hole,
+        the orb is moved to the new position.
+        """
+        orb_position_temp = set(self.orb_positions)
+        for orb in orb_position_temp:
+            direction = random.choice([UP, RIGHT, DOWN, LEFT])
+            prob = random.random()
+            if prob > 0.1:
+                continue
+
+            x_old, y_old = orb
+            new_position = None
+            if direction == UP:
+                new_position = (x_old, y_old - 1)
+            elif direction == RIGHT:
+                new_position = (x_old + 1, y_old)
+            elif direction == DOWN:
+                new_position = (x_old, y_old + 1)
+            elif direction == LEFT:
+                new_position = (x_old - 1, y_old)
+
+            if not self.is_valid_position(new_position):
+                continue
+
+            x_new, y_new = new_position
+            new_cell_label = self.get_cell_state(new_position)
+            # if new position is orb or filled hole cell nothing change
+            if ORB in new_cell_label or FILLED_HOLE in new_cell_label:
+                continue
+
+            if EMPTY in new_cell_label:
+                self.grid[y_old][x_old] = self.grid[y_old][x_old].replace(ORB, EMPTY)
+                self.grid[y_new][x_new] = self.grid[y_new][x_new].replace(EMPTY, ORB)
+                self.orb_positions.remove(orb)
+                self.orb_positions.add(new_position)
+            elif HOLE in new_cell_label:
+                self.grid[y_old][x_old] = self.grid[y_old][x_old].replace(ORB, EMPTY)
+                self.grid[y_new][x_new] = self.grid[y_new][x_new].replace(HOLE, FILLED_HOLE)
+                self.orb_positions.remove(orb)
+
     def place_orb(self, position: Tuple[int, int], agent: 'Agent') -> bool:
+        """
+        Places an orb at a given position in the playground.
+
+        Args:
+            position: A tuple containing two integers representing row and column indices.
+            agent: The Agent object that is placing the orb.
+
+        Returns:
+            A boolean value indicating whether the operation was successful. Returns True if an orb was successfully placed,
+            and False if the operation failed (for example, if the desired position is not valid, the agent does not have an orb, or there is no hole at the position).
+        """
         if not self.is_valid_position(position):
             return False
         if not agent.has_ball:
@@ -148,9 +247,23 @@ class Playground:
 
         x, y = position
         self.grid[y][x] = current_cell_state.replace(HOLE, FILLED_HOLE)
+
+        # switch position of other orbs
+        self.switch_orb_positions()
         return True
 
     def is_valid_position(self, position: Tuple[int, int]) -> bool:
+        """
+        Checks if a given position is valid in the playground.
+
+        Args:
+            position: A tuple containing two integers representing row and column indices.
+
+        Returns:
+            A boolean value indicating whether the position is valid. Returns True if the position is within the grid boundaries,
+            and False otherwise.
+        """
+
         if not position:
             return False
         # Check if position is within grid boundaries
@@ -160,12 +273,9 @@ class Playground:
         if y < 0 or y >= self.xAxis:
             return False
         # (check if position is an obstacle)?
-
         return True
 
     def plot(self, agents: List['Agent'], legends: bool = False) -> None:
-        clear_screen()
-
         output = ['╔══' + '══╦══'.join(['═'] * self.xAxis) + '══╗']
 
         for i, row in enumerate(self.grid):
@@ -178,7 +288,7 @@ class Playground:
         # Join all the strings in the list into a single string with a newline character between each string
         output_str = '\n'.join(output)
 
-        # clear_screen()
+        clear_screen()
         print(output_str)
         if legends:
             print(
