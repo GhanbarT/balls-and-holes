@@ -16,7 +16,7 @@ class Controller:
     def create_agent(self,
                      agent_id: Optional[str] = None,
                      position: Optional[Tuple[int, int]] = (0, 0),
-                     field_of_view: Optional[int] = 3) -> bool:
+                     field_of_view: Optional[int] = 3) -> Optional['Agent']:
         """
         Creates a new agent and adds it to the playground.
 
@@ -33,9 +33,9 @@ class Controller:
         agent = Agent(agent_id=agent_id, position=position, field_of_view=field_of_view)
         if self.playground.add_agent(agent):
             self.agents.append(agent)  # Add the new agent to the list of agents
-            return True
+            return agent
 
-        return False
+        return None
 
     def get_agent_by_id(self, agent_id: str) -> Optional[Agent]:
         """
@@ -70,29 +70,58 @@ class Controller:
         return None
 
     def perceive_agent(self, agent: Agent) -> None:
+        """
+        Updates the agent's perception of its surroundings.
+
+        Args:
+            agent: The Agent object to update.
+        """
         surrounding_cells = self.playground.get_surrounding_cells(position=agent.position,
                                                                   field_of_view=agent.field_of_view)
         agent.see(surrounding_cells)
 
     def perceive_agents(self) -> None:
+        """
+        Updates all agents' perceptions of their surroundings.
+        """
         for agent in self.agents:
             self.perceive_agent(agent)
 
     def next_round(self) -> None:
+        """
+        Advances the game by one round, allowing each agent to take an action.
+        """
         # Due to the fact that we will have only one agent at the moment, we do not have priority in performing the operation
         for agent in self.agents:
             agent.action(self.playground)
 
     def print_info(self) -> None:
-        print('╔═' + '═' * UUID_LEN + ('═╦═' + '═' * 16) * 3 + '═╗')
-        print('║ Agent ID ' + ' ' * (UUID_LEN - len('Agent ID')) + '║' + ' Current Position '.ljust(
-            16) + '║' + ' Target Position '.ljust(16) + ' ║' + ' Battery '.ljust(17) + ' ║')
-        print('╠═' + '═' * UUID_LEN + ('═╬═' + '═' * 16) * 3 + '═╣')
+        """
+        Prints information about all agents in a tabular format.
+        """
+        columns = [
+            ("Agent ID", lambda x: x.agent_id),
+            ("Current Position", lambda x: str(x.position)),
+            ("Target Position", lambda x: str(x.target_position)),
+            ("Battery", lambda x: str(x.battery)),
+            ("Ball", lambda x: "✔" if x.has_ball else ""),
+            ("Score", lambda x: str(x.get_score()))
+        ]
+        column_widths = [UUID_LEN] + [len(title) for title, _ in columns[1:]]
 
+        # Print the top border
+        print('┌' + '┬'.join('─' * width for width in column_widths) + '┐')
+        # Print the column titles
+        print('│' + '│'.join(f"{title.ljust(width)}" for (title, _), width in zip(columns, column_widths)) + '│')
+        # Print the separator line
+        print('├' + '┼'.join('─' * width for width in column_widths) + '┤')
+
+        # Print the values for each agent
         for i, agent in enumerate(self.agents):
             if i > 0:
-                print('╠═' + '═' * UUID_LEN + ('═╬═' + '═' * 16) * 3 + '═╣')
-            print(
-                '║ ' + f'{agent.agent_id} ║ {str(agent.position).ljust(16)} ║ {str(agent.target_position).ljust(16)} ║ {str(agent.battery).ljust(16)}' + ' ║')
+                print('├' + '┼'.join('─' * width for width in column_widths) + '┤')
+            print('│' + '│'.join(
+                f"{value_func(agent).ljust(width)}" for (_, value_func), width in zip(columns, column_widths)) + '│')
 
-        print('╚═' + '═' * UUID_LEN + ('═╩═' + '═' * 16) * 3 + '═╝')
+        # Print the bottom border
+        print('└' + '┴'.join('─' * width for width in column_widths) + '┘')
