@@ -6,6 +6,7 @@ from consts import EMPTY, HOLE, ORB, HAVING_ORB, ORB_CELL, HOLE_CELL, OBSTACLE, 
     RIGHT, DOWN, LEFT, FILLED_HOLE_CELL
 
 from Controller import Controller
+from utils import get_new_position
 
 if TYPE_CHECKING:
     from Agent import Agent
@@ -195,16 +196,7 @@ class Playground:
                 continue
 
             x_old, y_old = orb
-            new_position = None
-            if direction == UP:
-                new_position = (x_old, y_old - 1)
-            elif direction == RIGHT:
-                new_position = (x_old + 1, y_old)
-            elif direction == DOWN:
-                new_position = (x_old, y_old + 1)
-            elif direction == LEFT:
-                new_position = (x_old - 1, y_old)
-
+            new_position = get_new_position(direction, orb)
             if not self.is_valid_position(new_position):
                 continue
 

@@ -4,6 +4,7 @@ from typing import Tuple, Optional, TYPE_CHECKING, Set
 import uuid
 
 from consts import UP, RIGHT, DOWN, LEFT, AGENT, EMPTY, ORB, HOLE, FILLED_HOLE
+from utils import get_new_position
 
 if TYPE_CHECKING:
     from Playground import Playground
@@ -66,18 +67,9 @@ class Agent:
             and False if the operation failed (for example, if the desired position is not valid).
         """
         self.battery -= 1
-        x, y = self.position
 
         # TODO: convert this code to a utility function
-        new_position = None
-        if self.direction == UP:
-            new_position = (x, y - 1)
-        elif self.direction == RIGHT:
-            new_position = (x + 1, y)
-        elif self.direction == DOWN:
-            new_position = (x, y + 1)
-        elif self.direction == LEFT:
-            new_position = (x - 1, y)
+        new_position = get_new_position(self.direction, self.position)
 
         if environment.agent_enter_cell(new_position, self):
             self.position = new_position
@@ -243,17 +235,19 @@ class Agent:
         """
         Defines the agent's actions in its environment.
 
-        The agent first updates its item positions. Then, it interacts with its environment.
-        If the agent does not interact with the environment, it updates its target and moves towards it.
+        The agent first updates its item positions. Then, it checks if it can interact with the environment.
+        If the agent successfully interacts with the environment (i.e., picks up an orb or fills a hole), it updates the visibility of the playground and its item positions.
+        If the agent does not interact with the environment, it updates its target position and moves towards it.
+
+        The agent moves towards the target by turning in the appropriate direction and taking a step forward.
 
         Args:
             environment: The Playground object that the agent is in.
         """
         self.update_item_positions()
         if self.interact_with_environment(environment):
-            surrounding_cells = environment.get_surrounding_cells(position=self.position,
-                                                                  field_of_view=self.field_of_view)
-            self.see(surrounding_cells)
+            # updated items in playground (in agent position) so update the visibility
+            self.visibility[self.field_of_view // 2][self.field_of_view // 2] = environment.get_cell_state(self.position)
             self.update_item_positions()
             return
 
