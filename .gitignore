@@ -161,3 +161,4 @@ cython_debug/
 
 # output file
 output.txt
+/activate.ps1

@@ -9,8 +9,6 @@ from utils import get_new_position
 if TYPE_CHECKING:
     from Playground import Playground
 
-random.seed = 100
-
 
 class Agent:
     directions = (UP, RIGHT, DOWN, LEFT)
@@ -19,7 +17,9 @@ class Agent:
                  agent_id: Optional[str] = None,
                  position: Tuple[int, int] = (0, 0),
                  field_of_view: int = 3,
-                 visibility: list[list[str]] = None):
+                 visibility: list[list[str]] = None,
+                 random_seed: Optional[int] = None,
+                 battery: int = 30):
         self.agent_id = agent_id if agent_id is not None \
             else str(uuid.uuid4())  # Assign a random UUID if no ID is provided
         self.position = position
@@ -32,7 +32,7 @@ class Agent:
 
         # initial direction, battery, has_ball
         self.direction = 'up'  # Initial direction (up, down, left, right)
-        self.battery = 30
+        self.battery = battery
         self.has_ball = False
         self.hole_positions: list[Tuple[int, int]] = list()
         self.orb_positions: list[Tuple[int, int]] = list()
@@ -40,6 +40,9 @@ class Agent:
         self.target_position: Optional[Tuple[int, int]] = None
         self.is_a_random_target: bool = False
         self.filled_hole_positions: Set[Tuple[int, int]] = set()
+
+        if random_seed:
+            random.seed = random_seed
 
     def turn_clockwise(self) -> str:
         """
@@ -68,9 +71,7 @@ class Agent:
         """
         self.battery -= 1
 
-        # TODO: convert this code to a utility function
         new_position = get_new_position(self.direction, self.position)
-
         if environment.agent_enter_cell(new_position, self):
             self.position = new_position
             self.visited_cell.add(new_position)
@@ -247,7 +248,8 @@ class Agent:
         self.update_item_positions()
         if self.interact_with_environment(environment):
             # updated items in playground (in agent position) so update the visibility
-            self.visibility[self.field_of_view // 2][self.field_of_view // 2] = environment.get_cell_state(self.position)
+            self.visibility[self.field_of_view // 2][self.field_of_view // 2] = environment.get_cell_state(
+                self.position)
             self.update_item_positions()
             return
 

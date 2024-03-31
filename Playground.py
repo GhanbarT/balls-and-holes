@@ -1,11 +1,7 @@
 from typing import List, Tuple, Set, TYPE_CHECKING
 import random
 
-import bcolors
-from consts import EMPTY, HOLE, ORB, HAVING_ORB, ORB_CELL, HOLE_CELL, OBSTACLE, icons, AGENT, arrows, FILLED_HOLE, UP, \
-    RIGHT, DOWN, LEFT, FILLED_HOLE_CELL
-
-from Controller import Controller
+from consts import EMPTY, HOLE, ORB, FILLED_HOLE, UP, RIGHT, DOWN, LEFT
 from utils import get_new_position
 
 if TYPE_CHECKING:
@@ -291,58 +287,3 @@ class Playground:
             and False otherwise.
         """
         return HOLE in self.get_cell_state(position)
-
-    def plot(self, agents: List['Agent'], legends: bool = False) -> None:
-        output = ['╔══' + '══╦══'.join(['═'] * self.xAxis) + '══╗']
-
-        for i, row in enumerate(self.grid):
-            if i > 0:
-                output.append('╠══' + '══╬══'.join(['═'] * self.xAxis) + '══╣')
-            output.append('║' + '║'.join([f'{self.get_icon(agents, factor)}' for factor in row]) + '║')
-
-        output.append('╚══' + '══╩══'.join(['═'] * self.xAxis) + '══╝')
-
-        # Join all the strings in the list into a single string with a newline character between each string
-        output_str = '\n'.join(output)
-
-        print(output_str)
-        if legends:
-            print(
-                f'----Legends----'
-                f'\n-> {HAVING_ORB}Having Orb{bcolors.ENDC}'
-                f'\n-> {ORB_CELL}on Orb Cell{bcolors.ENDC}'
-                f'\n-> {HOLE_CELL}on Hole Cell{bcolors.ENDC}'
-                f'\n-> {FILLED_HOLE_CELL}on Filled Hole Cell{bcolors.ENDC}')
-
-    @staticmethod
-    def get_icon(agents: List['Agent'], factor: str, random_space=False) -> str:
-        """
-        Returns the icon corresponding to a given cell state.
-
-        Args:
-            agents: A list of Agent objects.
-            factor: A string representing the state of a cell.
-            random_space: A boolean value indicating whether to add a random space before the icon.
-
-        Returns:
-            A string representing the icon for the given cell state.
-        """
-        if factor == EMPTY or factor == OBSTACLE:
-            return icons[factor]
-
-        if AGENT in factor:
-            factors = factor.split(',')
-
-            # FIXME: fix AGENT and other factors generally
-            agent_id = factors[-1][len(AGENT) + 1:]
-            agent = Controller.find_agent(agents, agent_id)
-            text_color = HAVING_ORB if agent.has_ball else ''
-
-            if len(factors) > 1:
-                cell_colors = {ORB: ORB_CELL, HOLE: HOLE_CELL, FILLED_HOLE: FILLED_HOLE_CELL}
-                text_color += cell_colors.get(factors[0], '')
-
-            return text_color + arrows[agent.direction] + icons[AGENT] + agent_id[0:2] + bcolors.ENDC
-
-        if factor == HOLE or factor == ORB or factor == FILLED_HOLE:
-            return icons[factor] + ' ' if random.choice([False, random_space]) else ' ' + icons[factor]

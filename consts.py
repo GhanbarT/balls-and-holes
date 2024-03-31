@@ -32,7 +32,13 @@ RIGHT = 'right'
 DOWN = 'down'
 LEFT = 'left'
 
-icons = {
+CELL_COLORS = {
+    ORB: ORB_CELL,
+    HOLE: HOLE_CELL,
+    FILLED_HOLE: FILLED_HOLE_CELL
+}
+
+ICONS = {
     EMPTY: ' ' * 5,
     AGENT: '🤖',
     HOLE: ' 🕳️ ',
@@ -41,7 +47,7 @@ icons = {
     OBSTACLE: '█' * 5
 }
 
-arrows = {
+ARROWS = {
     UP: '⮙',
     RIGHT: '⮚',
     DOWN: '⮛',
