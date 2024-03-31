@@ -1,31 +1,26 @@
-# from time import sleep
-from time import sleep
-
 from Controller import Controller
 from Playground import Playground
 
 if __name__ == '__main__':
+    hole_count = orb_count = 5
+    max_score = min(hole_count, orb_count)
+
     playground = Playground()
     controller = Controller(playground)
-    controller.create_agent()
+    current_agent = controller.create_agent()
+    if not current_agent:
+        raise ValueError("Agent was not created")
+
     playground.place_holes_and_orbs()
 
-    # controller.agents[0].has_ball = True
-
-    # playground.agents[0].position = (1, 1)
-    # playground.grid[1][1] = AGENT + '-' + playground.agents[0].agent_id + (
-    #     (',' + (ORB if playground.grid[1][1] == ORB else HOLE if playground.grid[1][1] == HOLE else '')) if
-    #     playground.grid[1][1] != EMPTY else '')
-    # playground.grid[0][0] = EMPTY
     playground.plot(agents=controller.agents, legends=True)
     controller.print_info()
-
-    for i in range(10):
+    while current_agent.battery > 0 and current_agent.get_score() < max_score:
         controller.perceive_agents()
         controller.next_round()
         input()
         playground.plot(agents=controller.agents, legends=True)
         controller.print_info()
 
-    # print(playground.agents[0].visibility)
-    # playground.print_info()
+    # TODO: add history to playground and controller so that we can move between different times
+    print("Agent completed the task successfully" if current_agent.get_score() == max_score else "Game Over")

@@ -22,7 +22,7 @@ EMPTY = 'empty'
 AGENT = 'agent'
 HOLE = 'hole'
 ORB = 'orb'
-FILLED_HOLE = 'filled_hole'
+FILLED_HOLE = 'filled'
 OBSTACLE = 'obstacle'
 OUTSIDE = 'out'
 
