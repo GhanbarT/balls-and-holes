@@ -2,9 +2,8 @@ from typing import List, Tuple, Set, TYPE_CHECKING
 import random
 
 import bcolors
-from utils import clear_screen
 from consts import EMPTY, HOLE, ORB, HAVING_ORB, ORB_CELL, HOLE_CELL, OBSTACLE, icons, AGENT, arrows, FILLED_HOLE, UP, \
-    RIGHT, DOWN, LEFT
+    RIGHT, DOWN, LEFT, FILLED_HOLE_CELL
 
 from Controller import Controller
 
@@ -275,6 +274,32 @@ class Playground:
         # (check if position is an obstacle)?
         return True
 
+    def is_a_orb_cell(self, position: Tuple[int, int]) -> bool:
+        """
+        Checks if a given position in the playground is an orb cell.
+
+        Args:
+            position: A tuple containing two integers representing row and column indices.
+
+        Returns:
+            A boolean value indicating whether the position is an orb cell. Returns True if the position contains an orb,
+            and False otherwise.
+        """
+        return ORB in self.get_cell_state(position)
+
+    def is_a_hole_cell(self, position: Tuple[int, int]) -> bool:
+        """
+        Checks if a given position in the playground is a hole cell.
+
+        Args:
+            position: A tuple containing two integers representing row and column indices.
+
+        Returns:
+            A boolean value indicating whether the position is a hole cell. Returns True if the position contains a hole,
+            and False otherwise.
+        """
+        return HOLE in self.get_cell_state(position)
+
     def plot(self, agents: List['Agent'], legends: bool = False) -> None:
         output = ['╔══' + '══╦══'.join(['═'] * self.xAxis) + '══╗']
 
@@ -288,17 +313,28 @@ class Playground:
         # Join all the strings in the list into a single string with a newline character between each string
         output_str = '\n'.join(output)
 
-        clear_screen()
         print(output_str)
         if legends:
             print(
                 f'----Legends----'
                 f'\n-> {HAVING_ORB}Having Orb{bcolors.ENDC}'
                 f'\n-> {ORB_CELL}on Orb Cell{bcolors.ENDC}'
-                f'\n-> {HOLE_CELL}on Hole Cell{bcolors.ENDC}')
+                f'\n-> {HOLE_CELL}on Hole Cell{bcolors.ENDC}'
+                f'\n-> {FILLED_HOLE_CELL}on Filled Hole Cell{bcolors.ENDC}')
 
     @staticmethod
     def get_icon(agents: List['Agent'], factor: str, random_space=False) -> str:
+        """
+        Returns the icon corresponding to a given cell state.
+
+        Args:
+            agents: A list of Agent objects.
+            factor: A string representing the state of a cell.
+            random_space: A boolean value indicating whether to add a random space before the icon.
+
+        Returns:
+            A string representing the icon for the given cell state.
+        """
         if factor == EMPTY or factor == OBSTACLE:
             return icons[factor]
 
@@ -311,7 +347,8 @@ class Playground:
             text_color = HAVING_ORB if agent.has_ball else ''
 
             if len(factors) > 1:
-                text_color += ORB_CELL if factors[0] == ORB else (HOLE_CELL if factors[0] == HOLE else '')
+                cell_colors = {ORB: ORB_CELL, HOLE: HOLE_CELL, FILLED_HOLE: FILLED_HOLE_CELL}
+                text_color += cell_colors.get(factors[0], '')
 
             return text_color + arrows[agent.direction] + icons[AGENT] + agent_id[0:2] + bcolors.ENDC
 

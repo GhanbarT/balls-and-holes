@@ -1,5 +1,6 @@
 from Controller import Controller
 from Playground import Playground
+from utils import clear_screen
 
 if __name__ == '__main__':
     hole_count = orb_count = 5
@@ -13,14 +14,17 @@ if __name__ == '__main__':
 
     playground.place_holes_and_orbs()
 
+    clear_screen()
     playground.plot(agents=controller.agents, legends=True)
     controller.print_info()
-    while current_agent.battery > 0 and current_agent.get_score() < max_score:
+    input()
+    while current_agent.battery >= 0 and current_agent.get_score() < max_score:
+        clear_screen()
         controller.perceive_agents()
         controller.next_round()
-        input()
         playground.plot(agents=controller.agents, legends=True)
         controller.print_info()
+        input()
 
     # TODO: add history to playground and controller so that we can move between different times
     print("Agent completed the task successfully" if current_agent.get_score() == max_score else "Game Over")

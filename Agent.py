@@ -96,7 +96,7 @@ class Agent:
             A boolean value indicating whether the operation was successful. Returns True if the agent picked up a ball successfully,
             and False if the operation failed (for example, if the agent already has a ball or there is no ball at the agent's position).
         """
-        self.target_position = None
+        # self.target_position = None
         if self.has_ball:
             return False
         if environment.pick_orb(self.position):
@@ -116,7 +116,7 @@ class Agent:
             A boolean value indicating whether the operation was successful. Returns True if the agent placed a ball in a hole successfully,
             and False if the operation failed (for example, if the agent does not have a ball or there is no hole at the agent's position).
         """
-        self.target_position = None
+        # self.target_position = None
         if not self.has_ball:
             return False
 
@@ -145,7 +145,7 @@ class Agent:
         top_left_x = self.position[0] - self.field_of_view // 2
         top_left_y = self.position[1] - self.field_of_view // 2
 
-        print(self.visibility)
+        # print(self.visibility)
         # Iterate over each cell in the visibility grid
         for i in range(len(self.visibility)):
             for j in range(len(self.visibility[i])):
@@ -211,18 +211,51 @@ class Agent:
             if random_position not in self.visited_cell:
                 return random_position
 
-    def action(self, environment: 'Playground'):
-        self.update_item_positions()
+    def interact_with_environment(self, environment: 'Playground') -> bool:
+        """
+        Allows the agent to interact with its environment.
+
+        If the agent has a ball and is on a hole cell, it puts the ball in the hole.
+        If the agent does not have a ball and is on an orb cell, it takes the ball.
+        If the agent's current position is the target position, it resets the target position.
+
+        Args:
+            environment: The Playground object that the agent is in.
+
+        Returns:
+            A boolean value indicating whether the agent interacted with the environment. Returns True if the agent interacted with the environment,
+            and False otherwise.
+        """
+        if self.has_ball and environment.is_a_hole_cell(self.position):
+            self.put_ball_in_hole(environment)
+            return True
+        if not self.has_ball and environment.is_a_orb_cell(self.position):
+            self.take_ball(environment)
+            return True
 
         if self.target_position == self.position:
-            if self.is_a_random_target:
-                self.is_a_random_target = False
-            elif self.has_ball:
-                self.put_ball_in_hole(environment)
-                return
-            else:
-                self.take_ball(environment)
-                return
+            self.target_position = None
+            self.is_a_random_target = False
+
+        return False
+
+    def action(self, environment: 'Playground'):
+        """
+        Defines the agent's actions in its environment.
+
+        The agent first updates its item positions. Then, it interacts with its environment.
+        If the agent does not interact with the environment, it updates its target and moves towards it.
+
+        Args:
+            environment: The Playground object that the agent is in.
+        """
+        self.update_item_positions()
+        if self.interact_with_environment(environment):
+            surrounding_cells = environment.get_surrounding_cells(position=self.position,
+                                                                  field_of_view=self.field_of_view)
+            self.see(surrounding_cells)
+            self.update_item_positions()
+            return
 
         self.update_target(environment)
 
