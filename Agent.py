@@ -151,6 +151,8 @@ class Agent:
 
                 if FILLED_HOLE in self.visibility[i][j]:
                     self.filled_hole_positions.add((env_x, env_y))
+                    if (env_x, env_y) in self.hole_positions:
+                        self.hole_positions.remove((env_x, env_y))
 
     def update_target(self, environment: 'Playground') -> None:
         """
@@ -199,10 +201,13 @@ class Agent:
         # with open('output.txt', 'a') as f:
         #     f.write(f'find_random_position {self.visited_cell}\n')
 
-        while True:
-            random_position = (random.randint(0, environment.xAxis - 1), random.randint(0, environment.yAxis - 1))
-            if random_position not in self.visited_cell:
-                return random_position
+        all_cell = set([(i, j) for i in range(environment.xAxis) for j in range(environment.yAxis)])
+        reminded_cell = all_cell - self.visited_cell
+        if len(reminded_cell) > 0:
+            return random.choice(list(reminded_cell))
+        else:
+            # Logically, this should never happen! =]
+            return self.visited_cell.pop()
 
     def interact_with_environment(self, environment: 'Playground') -> bool:
         """
