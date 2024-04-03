@@ -152,7 +152,8 @@ class Controller:
     def create_agent(self,
                      agent_id: Optional[str] = None,
                      position: Optional[Tuple[int, int]] = (0, 0),
-                     field_of_view: Optional[int] = 3) -> Optional['Agent']:
+                     field_of_view: Optional[int] = 3,
+                     battery=30) -> Optional['Agent']:
         """
         Creates a new agent and adds it to the playground.
 
@@ -161,12 +162,13 @@ class Controller:
             position: A tuple containing two integers representing row and column indices.
                       If not provided, the agent will be placed at the default position (0, 0).
             field_of_view: An integer representing the field of view. If not provided, the default field of view will be used.
+            battery: An integer representing the initial battery level. If not provided, the default battery level will be used.
 
         Returns:
             A boolean value indicating whether the operation was successful. Returns True if the agent was created and added successfully,
             and False if the operation failed (for example, if the desired position is already occupied).
         """
-        agent = Agent(agent_id=agent_id, position=position, field_of_view=field_of_view)
+        agent = Agent(agent_id=agent_id, position=position, field_of_view=field_of_view, battery=battery)
         if self.playground.add_agent(agent):
             self.agents.append(agent)  # Add the new agent to the list of agents
             return agent

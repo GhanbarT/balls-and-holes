@@ -1,3 +1,4 @@
+import argparse
 from Controller import Controller
 from Playground import Playground
 from utils import clear_screen, get_key_action
@@ -60,7 +61,16 @@ def v2(current_agent):
 
 
 if __name__ == '__main__':
-    playground = Playground()
+    parser = argparse.ArgumentParser(description='Playground parameters')
+    parser.add_argument('-dim', type=str, default='5,5', help='Dimensions of the playground (default: 5,5)')
+    parser.add_argument('-orb', type=int, default=5, help='Number of orbs in the playground (default: 5)')
+    parser.add_argument('-hole', type=int, default=5, help='Number of holes in the playground (default: 5)')
+    args = parser.parse_args()
+
+    dim_x, dim_y = map(int, args.dim.split(','))
+    dimensions: tuple[int, int] = (dim_x, dim_y)
+
+    playground = Playground(dimension=dimensions, num_orbs=args.orb, num_holes=args.hole)
     controller = Controller(playground)
     current_agent = controller.create_agent()
     if not current_agent:
