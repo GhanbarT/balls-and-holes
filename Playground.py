@@ -11,12 +11,12 @@ if TYPE_CHECKING:
 class Playground:
 
     def __init__(self,
-                 dimension: Tuple[int, int] = (5, 5),
+                 dimensions: Tuple[int, int] = (5, 5),
                  num_holes: int = 5,
                  num_orbs: int = 5,
                  field_of_view: int = 3):
-        self.dimension = dimension
-        self.xAxis, self.yAxis = dimension
+        self.dimensions = dimensions
+        self.xAxis, self.yAxis = dimensions
         self.grid: list[list[str]] = [[EMPTY] * self.xAxis for _ in range(self.yAxis)]
 
         self.agent_start_positions: Set[Tuple[int, int]] = set()  # Store unique agent positions
@@ -199,6 +199,7 @@ class Playground:
             x_new, y_new = new_position
             new_cell_label = self.get_cell_state(new_position)
             # if new position is orb or filled hole cell nothing change
+            # FIXME: if there are multiple agents in the playground, we must add some behavior for the agent cell.
             if ORB in new_cell_label or FILLED_HOLE in new_cell_label:
                 continue
 

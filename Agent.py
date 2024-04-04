@@ -224,6 +224,8 @@ class Agent:
             A boolean value indicating whether the agent interacted with the environment. Returns True if the agent interacted with the environment,
             and False otherwise.
         """
+        # TODO: add checking battery condition
+        #   if batter = 0 -> move not allowed
         if self.has_ball and environment.is_a_hole_cell(self.position):
             self.put_ball_in_hole(environment)
             return True

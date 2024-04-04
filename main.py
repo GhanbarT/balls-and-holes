@@ -1,7 +1,7 @@
 import argparse
 from Controller import Controller
 from Playground import Playground
-from utils import clear_screen, get_key_action
+from utils import get_key_action
 from bcolors import GREEN_HIGHLIGHT, ENDC, RED_HIGHLIGHT
 
 
@@ -20,13 +20,11 @@ def print_guid(last_index=False) -> None:
             print(failure_message)
 
 
-def v1(current_agent):
-    clear_screen()
-    controller.plot(legends=True).print_info()
+def v1(current_agent, legends, info):
+    controller.plot(legends=legends, info=info)
     input()
     while current_agent.battery >= 0 and current_agent.get_score() < controller.get_max_score():
-        clear_screen()
-        controller.perceive_agents().next_round().plot(legends=True).print_info()
+        controller.perceive_agents().next_round().plot(legends=legends, info=info)
         input()
 
     success_message = GREEN_HIGHLIGHT + "Agent completed the task successfully" + ENDC
@@ -37,44 +35,43 @@ def v1(current_agent):
         print(failure_message)
 
 
-def v2(current_agent):
+def v2(current_agent, show_legends, show_info):
     # Run the agent until it runs out of battery or reaches the max score
     while current_agent.battery >= 0 and current_agent.get_score() < controller.get_max_score():
         controller.perceive_agents().next_round()
 
     # Display the results
-    clear_screen()
-    controller.draw_current(legends=True, info=True)
+    controller.draw_current(legends=show_legends, info=show_info)
     print_guid()
     while True:
         action = get_key_action()
-        if action == 'enter' and controller.is_max_draw_index():
+        if action == 'enter' and controller.is_last_draw_index():
             break
         if action == 'next':
-            clear_screen()
-            controller.draw_next(legends=True, info=True)
-            print_guid(controller.is_max_draw_index())
+            controller.draw_next(legends=show_legends, info=show_info)
+            print_guid(controller.is_last_draw_index())
         if action == 'previous':
-            clear_screen()
-            controller.draw_previous(legends=True, info=True)
-            print_guid(controller.is_max_draw_index())
+            controller.draw_previous(legends=show_legends, info=show_info)
+            print_guid(controller.is_last_draw_index())
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Playground parameters')
+    parser = argparse.ArgumentParser(description='game parameters')
     parser.add_argument('-dim', type=str, default='5,5', help='Dimensions of the playground (default: 5,5)')
-    parser.add_argument('-orb', type=int, default=5, help='Number of orbs in the playground (default: 5)')
+    parser.add_argument('-ball', type=int, default=5, help='Number of balls in the playground (default: 5)')
     parser.add_argument('-hole', type=int, default=5, help='Number of holes in the playground (default: 5)')
+    parser.add_argument('-legends', action='store_true', help='Show legends (default: False)')
+    parser.add_argument('-info', action='store_true', help='Show Agents\' info (default: False)')
     args = parser.parse_args()
 
     dim_x, dim_y = map(int, args.dim.split(','))
     dimensions: tuple[int, int] = (dim_x, dim_y)
 
-    playground = Playground(dimension=dimensions, num_orbs=args.orb, num_holes=args.hole)
+    playground = Playground(dimensions=dimensions, num_orbs=args.ball, num_holes=args.hole)
     controller = Controller(playground)
     current_agent = controller.create_agent()
     if not current_agent:
         raise ValueError("Agent was not created")
 
     controller.start()
-    v2(current_agent)
+    v2(current_agent, show_legends=args.legends, show_info=args.info)

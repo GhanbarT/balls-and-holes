@@ -7,6 +7,7 @@ from consts import UUID_LEN, HAVING_ORB, ORB_CELL, HOLE_CELL, FILLED_HOLE_CELL, 
     CELL_COLORS, ARROWS, HOLE, ORB, FILLED_HOLE
 
 from Agent import Agent
+from utils import clear_screen
 
 if TYPE_CHECKING:
     from Playground import Playground
@@ -40,6 +41,9 @@ class DrawableAgent:
             self.score = deepcopy(score)
 
     def get_score(self):
+        """
+        Returns the score of the agent.
+        """
         return self.score
 
 
@@ -50,7 +54,26 @@ class Draw:
         self.agents = agents
         self.iteration = iteration
 
-    def plot(self, legends: bool = False, info: bool = False) -> None:
+    def plot(self, cls=True, legends: bool = False, info: bool = False) -> None:
+        """
+        Plots the current state of the game grid in the console.
+
+        Args:
+            cls (bool, optional): If True, the console screen will be cleared before the grid is printed.
+                                  Default is True.
+            legends (bool, optional): If True, the function will print a legend that explains what each symbol in the grid represents.
+                                      Default is False.
+            info (bool, optional): If True, the function will print additional information about the game state.
+                                   Default is False.
+
+        The grid is printed as a series of strings. Each cell in the grid is represented by a symbol that indicates what's in the cell.
+        The symbols are obtained by calling the `get_icon` method of the `Draw` class for each cell.
+
+        After creating the string representation of the grid, the function prints it to the console. If `legends` is True, it also prints
+        the legend. If `info` is True, it calls `print_info` to print additional game info.
+
+        Finally, the function prints a line that shows the current iteration number.
+        """
         output = ['╔══' + '══╦══'.join(['═'] * self.xAxis) + '══╗']
 
         for i, row in enumerate(self.grid):
@@ -59,16 +82,19 @@ class Draw:
             output.append('║' + '║'.join([f'{Draw.get_icon(self.agents, factor)}' for factor in row]) + '║')
 
         output.append('╚══' + '══╩══'.join(['═'] * self.xAxis) + '══╝')
-
         # Join all the strings in the list into a single string with a newline character between each string
         output_str = '\n'.join(output)
 
+        if cls:
+            clear_screen()
+
         print(output_str)
+
         if legends:
             print(
                 f'----Legends----'
-                f'\n-> {HAVING_ORB}Having Orb{bcolors.ENDC}'
-                f'\n-> {ORB_CELL}on Orb Cell{bcolors.ENDC}'
+                f'\n-> {HAVING_ORB}Having Ball{bcolors.ENDC}'
+                f'\n-> {ORB_CELL}on Ball Cell{bcolors.ENDC}'
                 f'\n-> {HOLE_CELL}on Hole Cell{bcolors.ENDC}'
                 f'\n-> {FILLED_HOLE_CELL}on Filled Hole Cell{bcolors.ENDC}')
 
@@ -128,7 +154,7 @@ class Draw:
         if AGENT in factor:
             factors = factor.split(',')
 
-            # FIXME: fix AGENT and other factors generally
+            # FIXME: refactor AGENT handling and other factors in a more general way.
             agent_id = factors[-1][len(AGENT) + 1:]
             agent = Controller.find_agent(agents, agent_id)
             text_color = HAVING_ORB if agent.has_ball else ''
@@ -191,7 +217,7 @@ class Controller:
         return None
 
     @staticmethod
-    def find_agent(agents: List[Agent], agent_id: str) -> Optional[Agent]:
+    def find_agent(agents: List[Agent] | List['DrawableAgent'], agent_id: str) -> Optional[Agent]:
         """
         Returns the agent with the specified ID from a list of agents.
 
@@ -209,7 +235,7 @@ class Controller:
 
     def start(self) -> 'Controller':
         """
-        Starts the game by placing holes and orbs, and creating a new agent.
+        Starts the game by placing holes and orbs, and creating a new draw object.
         """
         self.playground.place_holes_and_orbs()
         self.draws.append(
@@ -233,6 +259,9 @@ class Controller:
     def perceive_agents(self) -> 'Controller':
         """
         Updates all agents' perceptions of their surroundings.
+
+        Returns:
+            self: Returns the Controller instance.
         """
         for agent in self.agents:
             self.perceive_agent(agent)
@@ -242,9 +271,13 @@ class Controller:
     def next_round(self) -> 'Controller':
         """
         Advances the game by one round, allowing each agent to take an action.
+
+        Returns:
+            self: Returns the Controller instance.
         """
         # Due to the fact that we will have only one agent at the moment, we do not have priority in performing the operation
         for agent in self.agents:
+            # TODO: check agent battery, if it is <0 then skip the agent
             agent.action(self.playground)
 
         # Create a new draw object
@@ -255,38 +288,94 @@ class Controller:
                  ))
         return self
 
-    def draw_current(self, legends=False, info=False) -> 'Controller':
-        self.draws[self.draw_index].plot(legends=legends, info=info)
+    def draw_current(self, cls=True, legends=False, info=False) -> 'Controller':
+        """
+        Draws the current state of the game.
+
+        Args:
+            cls (bool, optional): If True, the console screen will be cleared before the grid is printed.
+                                  Default is True.
+            legends (bool, optional): If True, legends will be included in the plot. Default is False.
+            info (bool, optional): If True, additional game information will be printed. Default is False.
+
+        Returns:
+            self: Returns the Controller instance.
+        """
+        self.draws[self.draw_index].plot(cls=cls, legends=legends, info=info)
 
         return self
 
-    def draw_next(self, legends=False, info=False) -> 'Controller':
+    def draw_next(self, cls=True, legends=False, info=False) -> 'Controller':
+        """
+        Advances to the next state of the game and draws it.
+
+        Args:
+            cls (bool, optional): If True, the console screen will be cleared before the grid is printed.
+                                  Default is True.
+            legends (bool, optional): If True, legends will be included in the plot. Default is False.
+            info (bool, optional): If True, additional game information will be printed. Default is False.
+
+        Returns:
+            self: Returns the Controller instance.
+        """
         self.draw_index += 1
         self.draw_index = min(self.draw_index, len(self.draws) - 1)
-        self.draws[self.draw_index].plot(legends=legends, info=info)
+        self.draws[self.draw_index].plot(cls=cls, legends=legends, info=info)
 
         return self
 
-    def draw_previous(self, legends=False, info=False) -> 'Controller':
+    def draw_previous(self, cls=True, legends=False, info=False) -> 'Controller':
+        """
+        Goes back to the previous state of the game and draws it.
+
+        Args:
+            cls (bool, optional): If True, the console screen will be cleared before the grid is printed.
+                                  Default is True.
+            legends (bool, optional): If True, legends will be included in the plot. Default is False.
+            info (bool, optional): If True, additional game information will be printed. Default is False.
+
+        Returns:
+            self: Returns the Controller instance.
+        """
         self.draw_index -= 1
         self.draw_index = max(0, self.draw_index)
-        self.draws[self.draw_index].plot(legends=legends, info=info)
+        self.draws[self.draw_index].plot(cls=cls, legends=legends, info=info)
 
         return self
 
-    def plot(self, legends=False) -> 'Controller':
-        self.draws[-1].plot(legends=legends)
-        return self
+    def plot(self, cls=True, legends=False, info=False) -> 'Controller':
+        """
+        Plots the latest state of the game.
 
-    def print_info(self) -> 'Controller':
+        Args:
+            cls (bool, optional): If True, the console screen will be cleared before the grid is printed.
+                                  Default is True.
+            legends (bool, optional): If True, legends will be included in the plot. Default is False.
+            info (bool, optional): If True, additional game information will be printed. Default is False.
+
+        Returns:
+            self: Returns the Controller instance.
         """
-        Prints information about all agents in a tabular format.
-        """
-        self.draws[-1].print_info()
+        self.draws[-1].plot(cls=cls, legends=legends)
+        if info:
+            self.draws[-1].print_info()
+
         return self
 
     def get_max_score(self) -> int:
+        """
+        Calculates the maximum possible score in the game.
+
+        Returns:
+            int: The maximum possible score, which is the minimum of the number of holes and orbs in the playground.
+        """
         return min(self.playground.num_holes, self.playground.num_orbs)
 
-    def is_max_draw_index(self):
+    def is_last_draw_index(self):
+        """
+        Checks if the current draw index is the last one.
+
+        Returns:
+            bool: True if the current draw index is the last one, False otherwise.
+        """
         return self.draw_index == len(self.draws) - 1
