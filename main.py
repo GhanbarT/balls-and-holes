@@ -14,7 +14,7 @@ def print_guid(last_index=False) -> None:
     if last_index:
         success_message = GREEN_HIGHLIGHT + "Agent completed the task successfully" + ENDC
         failure_message = RED_HIGHLIGHT + "Agent failed the task successfully" + ENDC
-        if current_agent.get_score() == controller.get_max_score():
+        if controller.agents[0].get_score() == controller.get_max_score():
             print(success_message)
         else:
             print(failure_message)
@@ -62,6 +62,7 @@ if __name__ == '__main__':
     parser.add_argument('-hole', type=int, default=5, help='Number of holes in the playground (default: 5)')
     parser.add_argument('-legends', action='store_true', help='Show legends (default: False)')
     parser.add_argument('-info', action='store_true', help='Show Agents\' info (default: False)')
+    parser.add_argument('-agents', type=str, help='Agents\' positions and types (default: None)')
     args = parser.parse_args()
 
     dim_x, dim_y = map(int, args.dim.split(','))
@@ -69,9 +70,7 @@ if __name__ == '__main__':
 
     playground = Playground(dimensions=dimensions, num_orbs=args.ball, num_holes=args.hole)
     controller = Controller(playground)
-    current_agent = controller.create_agent()
-    if not current_agent:
-        raise ValueError("Agent was not created")
+    controller.create_agents(args.agents, 2)
 
     controller.start()
-    v2(current_agent, show_legends=args.legends, show_info=args.info)
+    v2(controller.agents[0], show_legends=args.legends, show_info=args.info)

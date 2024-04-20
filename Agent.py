@@ -14,14 +14,16 @@ class Agent:
     directions = (UP, RIGHT, DOWN, LEFT)
 
     def __init__(self,
+                 position: Tuple[int, int],
                  agent_id: Optional[str] = None,
-                 position: Tuple[int, int] = (0, 0),
+                 agent_type: int = 1,
                  field_of_view: int = 3,
                  visibility: list[list[str]] = None,
                  random_seed: Optional[int] = None,
                  battery: int = 30):
         self.agent_id = agent_id if agent_id is not None \
             else str(uuid.uuid4())  # Assign a random UUID if no ID is provided
+        self.type = agent_type
         self.position = position
         self.field_of_view = field_of_view
 

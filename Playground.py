@@ -42,9 +42,19 @@ class Playground:
 
         self.agent_start_positions.add(agent.position)  # Save the unique position
         x, y = agent.position
-        self.grid[x][y] = agent.get_label()
+        self.grid[y][x] = agent.get_label()
 
         return True
+
+    def get_random_empty_position(self) -> Tuple[int, int]:
+        """
+        Returns a random empty position in the playground.
+
+        Returns:
+            A tuple containing two integers representing row and column indices.
+        """
+        empty_positions = [(i, j) for i in range(self.xAxis) for j in range(self.yAxis) if self.grid[j][i] == EMPTY]
+        return random.choice(empty_positions)
 
     def place_holes_and_orbs(self) -> None:
         """

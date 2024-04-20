@@ -177,7 +177,8 @@ class Controller:
 
     def create_agent(self,
                      agent_id: Optional[str] = None,
-                     position: Optional[Tuple[int, int]] = (0, 0),
+                     agent_type: int = 1,
+                     position: Optional[Tuple[int, int]] = None,
                      field_of_view: Optional[int] = 3,
                      battery=30) -> Optional['Agent']:
         """
@@ -185,8 +186,9 @@ class Controller:
 
         Args:
             agent_id: A string representing the agent's ID. If not provided, a random UUID will be assigned.
+            agent_type: An integer representing the type of the agent. Default is 1.
             position: A tuple containing two integers representing row and column indices.
-                      If not provided, the agent will be placed at the default position (0, 0).
+                      If not provided, the agent will be placed at a random position.
             field_of_view: An integer representing the field of view. If not provided, the default field of view will be used.
             battery: An integer representing the initial battery level. If not provided, the default battery level will be used.
 
@@ -194,12 +196,62 @@ class Controller:
             A boolean value indicating whether the operation was successful. Returns True if the agent was created and added successfully,
             and False if the operation failed (for example, if the desired position is already occupied).
         """
-        agent = Agent(agent_id=agent_id, position=position, field_of_view=field_of_view, battery=battery)
+        if position is None:
+            position = self.playground.get_random_empty_position()
+
+        agent = Agent(agent_id=agent_id,
+                      agent_type=agent_type,
+                      position=position,
+                      field_of_view=field_of_view,
+                      battery=battery)
         if self.playground.add_agent(agent):
             self.agents.append(agent)  # Add the new agent to the list of agents
             return agent
 
         return None
+
+    def create_agents(self, agents_str: Optional[str], min_agent: int) -> 'Controller':
+        """
+        Creates agents based on the provided string.
+
+        Args:
+            agents_str: A string containing agent information in the format "x,y,type;x,y,type;...".
+                        If not provided, two agents of type 1 will be created at random positions.
+            min_agent: An integer representing the minimum number of agents to create.
+
+        Raises:
+            ValueError: If the number of agents created is less than the minimum number specified.
+
+        Example:
+            create_agents("0,0,1;1,1,2", 2)
+            This will create two agents:
+            - Agent 1 of type 1 at position (0, 0)
+            - Agent 2 of type 2 at position (1, 1)
+
+        Returns: self
+        """
+        if agents_str:
+            agents = agents_str.split(';')
+            for agent in agents:
+                agent_info = agent.split(',')
+                if len(agent_info) == 3:
+                    x, y, agent_type = map(int, agent_info)
+                else:
+                    x, y = map(int, agent_info)
+                    agent_type = 1  # default agent type
+                agent = self.create_agent(agent_type=agent_type, position=(x, y))
+                if not agent:
+                    raise ValueError(f"Agent at position ({x}, {y}) was not created")
+
+        agent_counts = len(self.agents)
+        if agent_counts < min_agent:
+            # Create at least two agents of type 1 if no agents are specified
+            for i in range(min_agent - agent_counts):
+                agent = self.create_agent(agent_type=1)
+                if not agent:
+                    raise ValueError(f"Agent {agent_counts + i + 1} was not created")
+
+        return self
 
     def get_agent_by_id(self, agent_id: str) -> Optional[Agent]:
         """
