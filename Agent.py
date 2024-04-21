@@ -3,7 +3,7 @@ import random
 from typing import Tuple, Optional, Set, List, Union, TYPE_CHECKING
 import uuid
 
-from consts import UP, RIGHT, DOWN, LEFT, AGENT, EMPTY, ORB, HOLE, FILLED_HOLE
+from consts import UP, RIGHT, DOWN, LEFT, AGENT, EMPTY, ORB, HOLE, FILLED_HOLE, LOCK
 from utils import get_new_position
 
 if TYPE_CHECKING:
@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 class Agent:
     directions = (UP, RIGHT, DOWN, LEFT)
-    locked_position: Set[Tuple[int, int]] = set()
 
     def __init__(self,
                  position: Tuple[int, int],
@@ -38,13 +37,18 @@ class Agent:
         self.direction = 'up'  # Initial direction (up, down, left, right)
         self.battery = battery
         self.has_ball = False
+
+        # saved list positions
         self.hole_positions: list[Tuple[int, int]] = list()
         self.orb_positions: list[Tuple[int, int]] = list()
-        self.locked_positions: list[Tuple[int, int]] = list()
         self.filled_hole_positions: Set[Tuple[int, int]] = set()
 
         self.target_position: Optional[Tuple[int, int]] = None
         self.is_a_random_target: bool = False
+
+        # We use a common list for orbs and holes locked target positions (don't lock random target position)
+        # I think this is enough and there will be no need to have two different lists
+        self.locked_positions: list[Tuple[int, int]] = list()
 
         if random_seed:
             random.seed = random_seed
@@ -124,7 +128,7 @@ class Agent:
             return True
         return False
 
-    def see(self, visibility: list[list[str]]) -> None:
+    def see(self, visibility: list[list[str]]) -> 'Agent':
         """
         Updates the agent's visibility grid.
 
@@ -132,6 +136,7 @@ class Agent:
             visibility: A 2D list representing the cells that the agent can currently see.
         """
         self.visibility = visibility
+        return self
 
     def update_item_positions(self) -> None:
         """
@@ -158,6 +163,8 @@ class Agent:
                     if (env_x, env_y) in self.hole_positions:
                         self.hole_positions.remove((env_x, env_y))
 
+        # TODO: we can send all data (orb, hole and filled hole) to friends here, is it a good idea?
+
     def add_friends(self, friends: Union['Agent', List['Agent']]) -> List['Agent']:
         """
         Adds friends to the agent's list of friends.
@@ -171,11 +178,12 @@ class Agent:
         if isinstance(friends, Agent):
             friends = [friends]
 
-        # Add each friend to the agent's list of friends, excluding the agent itself
-        for friend in friends:
-            if friend.agent_id != self.agent_id:
-                self.friends.append(friend)
+        # Filter the incoming friends based on the current friends
+        current_friend_ids = {friend.agent_id for friend in self.friends}
+        new_friends = [friend for friend in friends if
+                       friend.agent_id != self.agent_id and friend.agent_id not in current_friend_ids]
 
+        self.friends.extend(new_friends)
         return self.friends
 
     def receive_friend_info(self,
@@ -197,6 +205,94 @@ class Agent:
         self.hole_positions += [pos for pos in hole_positions if pos not in self.hole_positions]
         self.orb_positions += [pos for pos in orb_positions if pos not in self.orb_positions]
         self.filled_hole_positions.update(filled_hole_positions)
+
+        return self
+
+    def receive_friends_info_v2(self,
+                                info_type: [ORB, HOLE, FILLED_HOLE, LOCK],
+                                status: [-1, 1],
+                                positions: List[Tuple[int, int]]) -> 'Agent':
+        """
+        Receives information from friends and updates the agent's knowledge.
+
+        Args:
+            info_type: A string representing the type of information to be received.
+                    types: ORB, HOLE, FILLED_HOLE
+            status: A integer representing the status of the information
+                    1: add the information to the friend's knowledge
+                    -1: remove the information from the friend's knowledge
+            positions: A list of tuples representing the positions of the items.
+
+        Returns:
+            The agent object itself.
+        """
+        if status == 1:
+            if info_type == ORB:
+                self.orb_positions += [pos for pos in positions if pos not in self.orb_positions]
+            elif info_type == HOLE:
+                self.hole_positions += [pos for pos in positions if pos not in self.hole_positions]
+            elif info_type == FILLED_HOLE:
+                # remove the filled hole from the hole_positions list
+                self.hole_positions = [pos for pos in self.hole_positions if pos not in positions]
+                self.filled_hole_positions.update(positions)
+            elif info_type == LOCK:
+                self.locked_positions += positions
+        elif status == -1:
+            if info_type == ORB:
+                self.orb_positions = [pos for pos in self.orb_positions if pos not in positions]
+            elif info_type == LOCK:
+                self.locked_positions = [pos for pos in self.locked_positions if pos not in positions]
+            # we don't have hole and filled hole functionality
+
+        return self
+
+    def lock_sell(self, position: Tuple[int, int]) -> 'Agent':
+        """
+        Locks a cell to prevent other agents from interacting with it.
+
+        Args:
+            position: A tuple representing the position of the cell to be locked.
+
+        Returns:
+            The agent object itself.
+        """
+        self.locked_positions.append(position)
+        self.inform_friends_v2(LOCK, 1, [position])
+        return self
+
+    def unlock_sell(self, position: Tuple[int, int]) -> 'Agent':
+        """
+        Unlocks a cell to allow other agents to interact with it.
+
+        Args:
+            position: A tuple representing the position of the cell to be unlocked.
+
+        Returns:
+            The agent object itself.
+        """
+        if position in self.locked_positions:
+            self.locked_positions.remove(position)
+            self.inform_friends_v2(LOCK, -1, [position])
+        return self
+
+    def inform_friends_v2(self, info_type: [ORB, HOLE, FILLED_HOLE], status: [-1, 1],
+                          positions: List[Tuple[int, int]]) -> 'Agent':
+        """
+        Informs friends about the agent's knowledge.
+
+        Args:
+            info_type: A string representing the type of information to be sent
+                    types: ORB, HOLE, FILLED_HOLE
+            status: A integer representing the status of the information
+                    1: add the information to the friend's knowledge
+                    -1: remove the information from the friend's knowledge
+            positions: A list of tuples representing the positions of the items.
+
+        Returns:
+            The agent object itself.
+        """
+        for friend in self.friends:
+            friend.receive_friends_info_v2(info_type, status, positions)
 
         return self
 
@@ -295,6 +391,9 @@ class Agent:
             return True
 
         if self.target_position == self.position:
+            # TODO: check if current position is in the orb_positions list but there is no orb in the cell
+            #  then the agent should remove the position from the orb_positions list and inform its friends
+            #  or we can do that in any update_item_positions run!
             self.target_position = None
             self.is_a_random_target = False
 

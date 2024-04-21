@@ -323,6 +323,7 @@ class Controller:
                  ))
         return self
 
+    # deprecated
     def perceive_agent(self, agent: Agent) -> None:
         """
         Updates the agent's perception of its surroundings.
@@ -354,12 +355,14 @@ class Controller:
         Returns:
             self: Returns the Controller instance.
         """
-        # Due to the fact that we will have only one agent at the moment, we do not have priority in performing the operation
         for agent in self.agents:
             if agent.battery < 0:
                 continue
-            self.perceive_agent(agent)
-            agent.action(self.playground).inform_friends()
+            # If agents must perceive info simultaneously; In that case, we should use old and deprecated functions.
+            # In the current state, each agent is perceived of the information after the moves of the previous agents.
+            surrounding_cells = self.playground.get_surrounding_cells(position=agent.position,
+                                                                      field_of_view=agent.field_of_view)
+            agent.see(surrounding_cells).action(self.playground)
 
         # Create a new draw object
         self.draws.append(
