@@ -1,6 +1,6 @@
 import random
 
-from typing import Tuple, Optional, TYPE_CHECKING, Set
+from typing import Tuple, Optional, Set, List, Union, TYPE_CHECKING
 import uuid
 
 from consts import UP, RIGHT, DOWN, LEFT, AGENT, EMPTY, ORB, HOLE, FILLED_HOLE
@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 class Agent:
     directions = (UP, RIGHT, DOWN, LEFT)
+    locked_position: Set[Tuple[int, int]] = set()
 
     def __init__(self,
                  position: Tuple[int, int],
@@ -31,6 +32,7 @@ class Agent:
             else [[EMPTY] * field_of_view for _ in range(field_of_view)]
         self.visibility[field_of_view // 2][field_of_view // 2] = self.get_label()
         self.visited_cell = {self.position}
+        self.friends = list()
 
         # initial direction, battery, has_ball
         self.direction = 'up'  # Initial direction (up, down, left, right)
@@ -38,10 +40,11 @@ class Agent:
         self.has_ball = False
         self.hole_positions: list[Tuple[int, int]] = list()
         self.orb_positions: list[Tuple[int, int]] = list()
+        self.locked_positions: list[Tuple[int, int]] = list()
+        self.filled_hole_positions: Set[Tuple[int, int]] = set()
 
         self.target_position: Optional[Tuple[int, int]] = None
         self.is_a_random_target: bool = False
-        self.filled_hole_positions: Set[Tuple[int, int]] = set()
 
         if random_seed:
             random.seed = random_seed
@@ -140,7 +143,6 @@ class Agent:
         top_left_x = self.position[0] - self.field_of_view // 2
         top_left_y = self.position[1] - self.field_of_view // 2
 
-        # print(self.visibility)
         # Iterate over each cell in the visibility grid
         for i in range(len(self.visibility)):
             for j in range(len(self.visibility[i])):
@@ -155,6 +157,63 @@ class Agent:
                     self.filled_hole_positions.add((env_x, env_y))
                     if (env_x, env_y) in self.hole_positions:
                         self.hole_positions.remove((env_x, env_y))
+
+    def add_friends(self, friends: Union['Agent', List['Agent']]) -> List['Agent']:
+        """
+        Adds friends to the agent's list of friends.
+
+        Args:
+            friends: An Agent instance or a list of Agent instances to be added to the friends list.
+
+        Returns:
+            The updated list of friends.
+        """
+        if isinstance(friends, Agent):
+            friends = [friends]
+
+        # Add each friend to the agent's list of friends, excluding the agent itself
+        for friend in friends:
+            if friend.agent_id != self.agent_id:
+                self.friends.append(friend)
+
+        return self.friends
+
+    def receive_friend_info(self,
+                            hole_positions: List[Tuple[int, int]],
+                            orb_positions: List[Tuple[int, int]],
+                            filled_hole_positions: Set[Tuple[int, int]]) -> 'Agent':
+        """
+        Receives information from friends and updates the agent's knowledge.
+
+        Args:
+            hole_positions: A list of tuples representing the positions of the holes.
+            orb_positions: A list of tuples representing the positions of the orbs.
+            filled_hole_positions: A set of tuples representing the positions of the filled holes.
+
+        Returns:
+            The agent object itself.
+        """
+        # Add or append the input arguments to the class variables
+        self.hole_positions += [pos for pos in hole_positions if pos not in self.hole_positions]
+        self.orb_positions += [pos for pos in orb_positions if pos not in self.orb_positions]
+        self.filled_hole_positions.update(filled_hole_positions)
+
+        return self
+
+    def inform_friends(self) -> 'Agent':
+        """
+        Informs friends about the agent's knowledge.
+
+        Returns:
+            The agent object itself.
+        """
+        # FIXME: instead of sending all the information, we must send data on changing playground state
+        #  for example, if the agent fills a hole, it should inform its friends about the filled hole and remove it from the hole_positions list
+        #  or if the agent picks up an orb, it should inform its friends about the picked orb and remove it from the orb_positions list
+        for friend in self.friends:
+            friend.receive_friend_info(self.hole_positions, self.orb_positions, self.filled_hole_positions)
+
+        return self
 
     def update_target(self, environment: 'Playground') -> None:
         """
@@ -241,7 +300,7 @@ class Agent:
 
         return False
 
-    def action(self, environment: 'Playground'):
+    def action(self, environment: 'Playground') -> 'Agent':
         """
         Defines the agent's actions in its environment.
 
@@ -253,6 +312,9 @@ class Agent:
 
         Args:
             environment: The Playground object that the agent is in.
+
+        Returns:
+            The agent object itself.
         """
         self.update_item_positions()
         if self.interact_with_environment(environment):
@@ -260,10 +322,11 @@ class Agent:
             self.visibility[self.field_of_view // 2][self.field_of_view // 2] = environment.get_cell_state(
                 self.position)
             self.update_item_positions()
-            return
+            return self
 
         self.update_target(environment)
 
+        # TODO: check that state if agents reach together
         target_x, target_y = self.target_position
         if self.position[0] < target_x:
             while self.direction != RIGHT:
@@ -278,6 +341,8 @@ class Agent:
             while self.direction != UP:
                 self.turn_clockwise()
         self.take_step_forward(environment)
+
+        return self
 
     def get_label(self) -> str:
         """

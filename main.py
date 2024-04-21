@@ -20,25 +20,10 @@ def print_guid(last_index=False) -> None:
             print(failure_message)
 
 
-def v1(current_agent, legends, info):
-    controller.plot(legends=legends, info=info)
-    input()
-    while current_agent.battery >= 0 and current_agent.get_score() < controller.get_max_score():
-        controller.perceive_agents().next_round().plot(legends=legends, info=info)
-        input()
-
-    success_message = GREEN_HIGHLIGHT + "Agent completed the task successfully" + ENDC
-    failure_message = RED_HIGHLIGHT + "Agent failed the task successfully" + ENDC
-    if current_agent.get_score() == controller.get_max_score():
-        print(success_message)
-    else:
-        print(failure_message)
-
-
 def v2(current_agent, show_legends, show_info):
     # Run the agent until it runs out of battery or reaches the max score
     while current_agent.battery >= 0 and current_agent.get_score() < controller.get_max_score():
-        controller.perceive_agents().next_round()
+        controller.next_round()
 
     # Display the results
     controller.draw_current(legends=show_legends, info=show_info)
@@ -66,11 +51,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     dim_x, dim_y = map(int, args.dim.split(','))
-    dimensions: tuple[int, int] = (dim_x, dim_y)
-
-    playground = Playground(dimensions=dimensions, num_orbs=args.ball, num_holes=args.hole)
+    playground = Playground(dimensions=(dim_x, dim_y), num_orbs=args.ball, num_holes=args.hole)
     controller = Controller(playground)
     controller.create_agents(args.agents, 2)
-
     controller.start()
+
     v2(controller.agents[0], show_legends=args.legends, show_info=args.info)

@@ -243,7 +243,7 @@ class Controller:
                 if not agent:
                     raise ValueError(f"Agent at position ({x}, {y}) was not created")
 
-        agent_counts = len(self.agents)
+        agent_counts = len(self.get_agents_by_type(1))
         if agent_counts < min_agent:
             # Create at least two agents of type 1 if no agents are specified
             for i in range(min_agent - agent_counts):
@@ -268,6 +268,18 @@ class Controller:
                 return agent
         return None
 
+    def get_agents_by_type(self, agent_type: int) -> List[Agent]:
+        """
+        Returns a list of agents of the specified type.
+
+        Args:
+            agent_type: An integer representing the agent type.
+
+        Returns:
+            A list of Agent objects of the specified type.
+        """
+        return [agent for agent in self.agents if agent.type == agent_type]
+
     @staticmethod
     def find_agent(agents: List[Agent] | List['DrawableAgent'], agent_id: str) -> Optional[Agent]:
         """
@@ -285,11 +297,25 @@ class Controller:
                 return agent
         return None
 
+    def introduce_friends(self) -> 'Controller':
+        """
+        Introduce friends to each agent
+
+        Returns:
+            self: Returns the Controller instance.
+        """
+        for agent in self.agents:
+            agent.add_friends(self.get_agents_by_type(agent.type))
+
+        return self
+
     def start(self) -> 'Controller':
         """
         Starts the game by placing holes and orbs, and creating a new draw object.
         """
         self.playground.place_holes_and_orbs()
+        self.introduce_friends()
+
         self.draws.append(
             Draw(grid=self.playground.grid,
                  agents=[DrawableAgent(agent=agent) for agent in self.agents],
@@ -308,6 +334,7 @@ class Controller:
                                                                   field_of_view=agent.field_of_view)
         agent.see(surrounding_cells)
 
+    # deprecated
     def perceive_agents(self) -> 'Controller':
         """
         Updates all agents' perceptions of their surroundings.
@@ -329,8 +356,10 @@ class Controller:
         """
         # Due to the fact that we will have only one agent at the moment, we do not have priority in performing the operation
         for agent in self.agents:
-            # TODO: check agent battery, if it is <0 then skip the agent
-            agent.action(self.playground)
+            if agent.battery < 0:
+                continue
+            self.perceive_agent(agent)
+            agent.action(self.playground).inform_friends()
 
         # Create a new draw object
         self.draws.append(
