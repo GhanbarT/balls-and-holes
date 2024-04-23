@@ -4,7 +4,7 @@ from typing import List, Tuple, Optional, TYPE_CHECKING
 
 import bcolors
 from consts import UUID_LEN, HAVING_ORB, ORB_CELL, HOLE_CELL, FILLED_HOLE_CELL, EMPTY, OBSTACLE, ICONS, AGENT, \
-    CELL_COLORS, ARROWS, HOLE, ORB, FILLED_HOLE
+    CELL_COLORS, ARROWS, HOLE, ORB, FILLED_HOLE, UP
 
 from Agent import Agent
 from utils import clear_screen
@@ -15,30 +15,30 @@ if TYPE_CHECKING:
 
 class DrawableAgent:
     def __init__(self,
-                 agent_id: str = None,
+                 agent_id: str = '',
                  position: Tuple[int, int] = None,
                  target_position: Tuple[int, int] = None,
-                 direction: str = None,
+                 direction: str = UP,
                  has_ball: bool = False,
                  battery: int = 30,
                  score: int = 0,
                  agent: 'Agent' = None):
         if agent is not None:
-            self.agent_id = deepcopy(agent.agent_id)
+            self.agent_id = str(agent.agent_id)
             self.position = deepcopy(agent.position)
             self.target_position = deepcopy(agent.target_position)
-            self.direction = deepcopy(agent.direction)
-            self.has_ball = deepcopy(agent.has_ball)
-            self.battery = deepcopy(agent.battery)
-            self.score = deepcopy(agent.get_score())
+            self.direction = str(agent.direction)
+            self.has_ball = bool(agent.has_ball)
+            self.battery = int(agent.battery)
+            self.score = int(agent.get_my_score())
         else:
-            self.agent_id = deepcopy(agent_id)
+            self.agent_id = str(agent_id)
             self.position = deepcopy(position)
             self.target_position = deepcopy(target_position)
-            self.direction = deepcopy(direction)
-            self.has_ball = deepcopy(has_ball)
-            self.battery = deepcopy(battery)
-            self.score = deepcopy(score)
+            self.direction = str(direction)
+            self.has_ball = bool(has_ball)
+            self.battery = int(battery)
+            self.score = int(score)
 
     def get_score(self):
         """
@@ -48,11 +48,12 @@ class DrawableAgent:
 
 
 class Draw:
-    def __init__(self, grid: list[list[str]], agents: List[DrawableAgent], iteration: int):
+    def __init__(self, grid: list[list[str]], agents: List[DrawableAgent], iteration: int, score: int = 0):
         self.grid = deepcopy(grid)
         self.xAxis = len(grid[0])
         self.agents = agents
         self.iteration = iteration
+        self.score = score
 
     def plot(self, cls=True, legends: bool = False, info: bool = False) -> None:
         """
@@ -92,7 +93,7 @@ class Draw:
 
         if legends:
             print(
-                f'----Legends----'
+                f'{bcolors.LIGHT_MAGENTA_HIGHLIGHT}----Legends----{bcolors.ENDC}'
                 f'\n-> {HAVING_ORB}Having Ball{bcolors.ENDC}'
                 f'\n-> {ORB_CELL}on Ball Cell{bcolors.ENDC}'
                 f'\n-> {HOLE_CELL}on Hole Cell{bcolors.ENDC}'
@@ -102,7 +103,7 @@ class Draw:
             self.print_info()
 
         print(
-            f'------------------------------------- Iteration: {str(self.iteration).rjust(3)} -------------------------------------')
+            f'------------------------------- {bcolors.LIGHT_YELLOW_HIGHLIGHT}{bcolors.BLACK} Iteration: {str(self.iteration).rjust(3)} - Detected Holes Filled: {str(self.score).rjust(2)} {bcolors.ENDC} -------------------------------')
 
     def print_info(self) -> None:
         """
@@ -319,7 +320,8 @@ class Controller:
         self.draws.append(
             Draw(grid=self.playground.grid,
                  agents=[DrawableAgent(agent=agent) for agent in self.agents],
-                 iteration=len(self.draws)
+                 iteration=len(self.draws),
+                 score=self.agents[0].get_all_agents_score()
                  ))
         return self
 
@@ -364,11 +366,14 @@ class Controller:
                                                                       field_of_view=agent.field_of_view)
             agent.see(surrounding_cells).action(self.playground)
 
+        # TODO: add verbose condition for printing the information
+        print(f'Iteration: {len(self.draws)} - Detected Holes Filled: {self.agents[0].get_all_agents_score()}')
         # Create a new draw object
         self.draws.append(
             Draw(grid=self.playground.grid,
                  agents=[DrawableAgent(agent=agent) for agent in self.agents],
-                 iteration=len(self.draws)
+                 iteration=len(self.draws),
+                 score=self.agents[0].get_all_agents_score()
                  ))
         return self
 

@@ -14,7 +14,7 @@ def print_guid(last_index=False) -> None:
     if last_index:
         success_message = GREEN_HIGHLIGHT + "Agent completed the task successfully" + ENDC
         failure_message = RED_HIGHLIGHT + "Agent failed the task successfully" + ENDC
-        if controller.agents[0].get_score() == controller.get_max_score():
+        if controller.agents[0].get_all_agents_score() == controller.get_max_score():
             print(success_message)
         else:
             print(failure_message)
@@ -22,7 +22,7 @@ def print_guid(last_index=False) -> None:
 
 def v2(current_agent, show_legends, show_info):
     # Run the agent until it runs out of battery or reaches the max score
-    while current_agent.battery >= 0 and current_agent.get_score() < controller.get_max_score():
+    while current_agent.battery >= 0 and current_agent.get_all_agents_score() < controller.get_max_score():
         controller.next_round()
 
     # Display the results
@@ -49,6 +49,9 @@ if __name__ == '__main__':
     parser.add_argument('-info', action='store_true', help='Show Agents\' info (default: False)')
     parser.add_argument('-agents', type=str, help='Agents\' positions and types (default: None)')
     args = parser.parse_args()
+
+    with open('output.txt', 'w'):
+        pass
 
     dim_x, dim_y = map(int, args.dim.split(','))
     playground = Playground(dimensions=(dim_x, dim_y), num_orbs=args.ball, num_holes=args.hole)

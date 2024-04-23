@@ -42,9 +42,11 @@ class Agent:
         self.hole_positions: list[Tuple[int, int]] = list()
         self.orb_positions: list[Tuple[int, int]] = list()
         self.filled_hole_positions: Set[Tuple[int, int]] = set()
+        self.filled_by_me_hole_positions: Set[Tuple[int, int]] = set()
 
         self.target_position: Optional[Tuple[int, int]] = None
         self.is_a_random_target: bool = False
+        self.is_new_road: bool = False
 
         # We use a common list for orbs and holes locked target positions (don't lock random target position)
         # I think this is enough and there will be no need to have two different lists
@@ -79,6 +81,7 @@ class Agent:
             and False if the operation failed (for example, if the desired position is not valid).
         """
         self.battery -= 1
+        self.is_new_road = False
 
         new_position = get_new_position(self.direction, self.position)
         if environment.agent_enter_cell(new_position, self):
@@ -126,6 +129,7 @@ class Agent:
         if environment.place_orb(self.position, self):
             self.has_ball = False
             self.hole_positions.remove(self.position)
+            self.filled_by_me_hole_positions.add(self.position)
             self.inform_friends_v2(FILLED_HOLE, -1, [self.position])
             return True
         return False
@@ -266,7 +270,9 @@ class Agent:
             self.inform_friends_v2(LOCK, -1, [position])
         return self
 
-    def inform_friends_v2(self, info_type: [ORB, HOLE, FILLED_HOLE, VISITED], status: [-1, 1],
+    def inform_friends_v2(self,
+                          info_type: [ORB, HOLE, FILLED_HOLE, VISITED],
+                          status: [-1, 1],
                           positions: List[Tuple[int, int]]) -> 'Agent':
         """
         Informs friends about the agent's knowledge.
@@ -296,7 +302,7 @@ class Agent:
         If there are no available targets, it sets a random position in the playground as the target.
         """
         # TODO: it seems better to find nearest not-locked target every step.
-        #  and also unlock previous target if it is locked
+        #  and also unlock previous target if it is locked and lock new target
         if self.target_position is not None and self.is_a_random_target is False:
             return
 
@@ -337,14 +343,12 @@ class Agent:
         Returns:
             A tuple containing two integers representing the row and column indices of the random position.
         """
-        # with open('output.txt', 'a') as f:
-        #     f.write(f'find_random_position {self.visited_cell}\n')
-
         all_cell = set([(i, j) for i in range(environment.xAxis) for j in range(environment.yAxis)])
         reminded_cell = all_cell - self.visited_cells
         if len(reminded_cell) > 0:
             return random.choice(list(reminded_cell))
         else:
+            # FIXME: it now can happened! because we have two agents and they can visit all cells
             # Logically, this should never happen! =))
             return self.visited_cells.pop()
 
@@ -364,19 +368,21 @@ class Agent:
             and False otherwise.
         """
         if self.has_ball and environment.is_a_hole_cell(self.position):
+            self.unlock_cell(position=self.target_position)
             self.put_ball_in_hole(environment)
             return True
         if not self.has_ball and environment.is_a_orb_cell(self.position):
+            self.unlock_cell(position=self.target_position)
             self.take_ball(environment)
             return True
 
         if self.target_position == self.position:
-            # TODO: check if current position is in the orb_positions list but there is no orb in the cell
-            #  then the agent should remove the position from the orb_positions list and inform its friends
-            #  or we can do that in any update_item_positions run!
+            #  check if current position is in the orb_positions list but there is no orb in the cell
+            #  then the agent should remove the position from the orb_positions list and inform its friends,
+            #  or we can do that in any update_item_positions run. (done!)
+            self.unlock_cell(position=self.target_position)
             self.target_position = None
             self.is_a_random_target = False
-            self.unlock_cell(position=self.position)
 
         return False
 
@@ -409,23 +415,137 @@ class Agent:
             return self
 
         self.update_target(environment)
-        # TODO: check that state if agents reach together
+        if self.is_new_road:
+            self.take_step_forward(environment)
+            return self
+
+        self.update_direction_towards_target()
+        if self.is_agent_in_front():
+            opposite_agent = self.get_opposite_agent()
+            # vis_x, vis_y = self.get_front_cell_indices()
+            with open('output.txt', 'a') as f:
+                f.write(
+                    f'{self.visibility};\ncurrent agent: {self};\nopposite agent: {opposite_agent}\n===============================\n')
+
+            if not self.handle_opposite_agent(opposite_agent):
+                return self
+
+        self.take_step_forward(environment)
+        return self
+
+    def update_direction_towards_target(self) -> None:
+        """
+        Updates the agent's direction to move towards the target position.
+        """
         target_x, target_y = self.target_position
         if self.position[0] < target_x:
-            while self.direction != RIGHT:
-                self.turn_clockwise()
+            self.turn_to_direction(RIGHT)
         elif self.position[0] > target_x:
-            while self.direction != LEFT:
-                self.turn_clockwise()
+            self.turn_to_direction(LEFT)
         elif self.position[1] < target_y:
-            while self.direction != DOWN:
-                self.turn_clockwise()
+            self.turn_to_direction(DOWN)
         elif self.position[1] > target_y:
-            while self.direction != UP:
-                self.turn_clockwise()
-        self.take_step_forward(environment)
+            self.turn_to_direction(UP)
 
-        return self
+    def turn_to_direction(self, direction: str) -> None:
+        """
+        Turns the agent to the given direction.
+        """
+        while self.direction != direction:
+            self.turn_clockwise()
+
+    def is_agent_in_front(self) -> bool:
+        """
+        Checks if another agent is in the front of the agent.
+
+        Returns:
+            A boolean value indicating whether another agent is in the front of the agent.
+        """
+        vis_x, vis_y = self.get_front_cell_indices()
+        return AGENT in self.visibility[vis_y][vis_x]
+
+    def get_opposite_agent(self) -> 'Agent':
+        """
+        Returns the opposite agent in the front of the agent.
+
+        Returns:
+            The opposite agent in the front of the agent.
+        """
+        vis_x, vis_y = self.get_front_cell_indices()
+        return [friend for friend in self.friends if friend.get_label() in self.visibility[vis_y][vis_x]][0]
+
+    def get_front_cell_indices(self) -> Tuple[int, int]:
+        """
+        Returns the indices of the cell in front of the agent based on its direction.
+
+        Returns:
+            A tuple containing two integers representing the row and column indices of the cell in front of the agent.
+        """
+        if self.direction == UP:
+            return self.field_of_view // 2, self.field_of_view // 2 - 1
+        elif self.direction == DOWN:
+            return self.field_of_view // 2, self.field_of_view // 2 + 1
+        elif self.direction == LEFT:
+            return self.field_of_view // 2 - 1, self.field_of_view // 2
+        elif self.direction == RIGHT:
+            return self.field_of_view // 2 + 1, self.field_of_view // 2
+
+    def handle_opposite_agent(self, opposite_agent: 'Agent') -> bool:
+        """
+        Handle the opposite agent.
+
+        Args:
+            opposite_agent: The opposite agent.
+
+        Returns:
+            A boolean value indicating whether the agent should move.
+        """
+        # if the other agent has no opposite direction of movement, wait one step (don't move).
+        if not Agent.is_opposite_direction(self.direction, opposite_agent.direction):
+            return False
+
+        if not self.is_target_in_current_direction():
+            self.change_direction_and_select_new_road()
+            return True
+        elif not opposite_agent.is_target_in_current_direction():
+            opposite_agent.change_direction_and_select_new_road()
+            opposite_agent.is_new_road = True
+            return False
+        elif self.battery > opposite_agent.battery:
+            self.change_direction_and_select_new_road()
+            return True
+            # Important note: if the paths of both agents are opposite to each other,
+            # we wait until the agent with more charge jumps or makes a decision.
+
+    def is_target_in_current_direction(self) -> bool:
+        """
+        Checks if the target position is in the current direction of the agent.
+
+        Returns:
+            A boolean value indicating whether the target position is in the current direction of the agent.
+        """
+        if self.direction in [UP, DOWN]:
+            return self.position[0] == self.target_position[0]
+        else:
+            return self.position[1] == self.target_position[1]
+
+    def change_direction_and_select_new_road(self) -> None:
+        """
+        Changes the direction of the agent and selects a new road to move.
+
+        The agent selects the road that is closest to the target position.
+        """
+        distances = []
+        possible_directions = [direction for direction in self.directions if direction != self.direction]
+
+        for direction in possible_directions:
+            new_position = get_new_position(direction, self.position)
+            distance = self.manhattan_distance(new_position, self.target_position)
+            distances.append(distance)
+
+        min_distance = min(distances)
+        min_index = distances.index(min_distance)
+        self.direction = self.directions[min_index]
 
     def get_label(self) -> str:
         """
@@ -438,7 +558,7 @@ class Agent:
         """
         return AGENT + '-' + self.agent_id
 
-    def get_score(self) -> int:
+    def get_my_score(self) -> int:
         """
         Returns the score of the agent.
 
@@ -447,7 +567,36 @@ class Agent:
         Returns:
             The score of the agent.
         """
+        return len(self.filled_by_me_hole_positions)
+
+    def get_all_agents_score(self) -> int:
+        """
+        The score is calculated as the number of filled holes in the playground.
+
+        Returns:
+            The score of all agents.
+        """
         return len(self.filled_hole_positions)
+
+    def __str__(self):
+        return f'Agent ID: {self.agent_id}, Type: {self.type}, Position: {self.position}, Target Position: {self.target_position}, Direction: {self.direction}, Battery: {self.battery}, Has Ball: {self.has_ball}, Score: {len(self.filled_by_me_hole_positions)}'
+
+    @staticmethod
+    def is_opposite_direction(direction1: str, direction2: str) -> bool:
+        """
+        Checks if two directions are opposite.
+
+        Args:
+            direction1: A string representing the first direction.
+            direction2: A string representing the second direction.
+
+        Returns:
+            A boolean value indicating whether the two directions are opposite.
+        """
+        return direction1 == UP and direction2 == DOWN or \
+            direction1 == DOWN and direction2 == UP or \
+            direction1 == LEFT and direction2 == RIGHT or \
+            direction1 == RIGHT and direction2 == LEFT
 
     @staticmethod
     def manhattan_distance(pos1: Tuple[int, int], pos2: Tuple[int, int]) -> int:
