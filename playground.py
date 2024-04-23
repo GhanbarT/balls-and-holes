@@ -5,7 +5,7 @@ from consts import EMPTY, HOLE, ORB, FILLED_HOLE, UP, RIGHT, DOWN, LEFT
 from utils import get_new_position
 
 if TYPE_CHECKING:
-    from Agent import Agent
+    from agent import Agent
 
 
 class Playground:

@@ -6,11 +6,11 @@ import bcolors
 from consts import UUID_LEN, HAVING_ORB, ORB_CELL, HOLE_CELL, FILLED_HOLE_CELL, EMPTY, OBSTACLE, ICONS, AGENT, \
     CELL_COLORS, ARROWS, HOLE, ORB, FILLED_HOLE, UP
 
-from Agent import Agent
+from agent import Agent
 from utils import clear_screen
 
 if TYPE_CHECKING:
-    from Playground import Playground
+    from playground import Playground
 
 
 class DrawableAgent:

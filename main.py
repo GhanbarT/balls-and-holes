@@ -1,6 +1,6 @@
 import argparse
-from Controller import Controller
-from Playground import Playground
+from controller import Controller
+from playground import Playground
 from utils import get_key_action
 from bcolors import GREEN_HIGHLIGHT, ENDC, RED_HIGHLIGHT
 
