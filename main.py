@@ -22,6 +22,7 @@ def print_guid(last_index=False) -> None:
 
 def v2(current_agent, show_legends, show_info):
     # Run the agent until it runs out of battery or reaches the max score
+    # FIXME: fix the condition to stop the agent when their battery runs out
     while current_agent.battery >= 0 and current_agent.get_all_agents_score() < controller.get_max_score():
         controller.next_round()
 

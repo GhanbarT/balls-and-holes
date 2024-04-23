@@ -427,7 +427,7 @@ class Agent:
                 f.write(
                     f'{self.visibility};\ncurrent agent: {self};\nopposite agent: {opposite_agent}\n===============================\n')
 
-            if not self.handle_opposite_agent(opposite_agent):
+            if not self.handle_opposite_agent(opposite_agent, environment):
                 return self
 
         self.take_step_forward(environment)
@@ -490,12 +490,13 @@ class Agent:
         elif self.direction == RIGHT:
             return self.field_of_view // 2 + 1, self.field_of_view // 2
 
-    def handle_opposite_agent(self, opposite_agent: 'Agent') -> bool:
+    def handle_opposite_agent(self, opposite_agent: 'Agent', environment: 'Playground') -> bool:
         """
         Handle the opposite agent.
 
         Args:
             opposite_agent: The opposite agent.
+            environment: The Playground object that the agent is in.
 
         Returns:
             A boolean value indicating whether the agent should move.
@@ -505,14 +506,14 @@ class Agent:
             return False
 
         if not self.is_target_in_current_direction():
-            self.change_direction_and_select_new_road()
+            self.change_direction_and_select_new_road(environment)
             return True
         elif not opposite_agent.is_target_in_current_direction():
-            opposite_agent.change_direction_and_select_new_road()
+            opposite_agent.change_direction_and_select_new_road(environment)
             opposite_agent.is_new_road = True
             return False
-        elif self.battery > opposite_agent.battery:
-            self.change_direction_and_select_new_road()
+        elif self.battery >= opposite_agent.battery:
+            self.change_direction_and_select_new_road(environment)
             return True
             # Important note: if the paths of both agents are opposite to each other,
             # we wait until the agent with more charge jumps or makes a decision.
@@ -529,17 +530,23 @@ class Agent:
         else:
             return self.position[1] == self.target_position[1]
 
-    def change_direction_and_select_new_road(self) -> None:
+    def change_direction_and_select_new_road(self, environment: 'Playground') -> None:
         """
         Changes the direction of the agent and selects a new road to move.
 
         The agent selects the road that is closest to the target position.
+
+        Args:
+            environment: The Playground object that the agent is in.
         """
         distances = []
         possible_directions = [direction for direction in self.directions if direction != self.direction]
 
         for direction in possible_directions:
             new_position = get_new_position(direction, self.position)
+            # TODO: use visibility instead of environment
+            if not environment.is_valid_position(new_position):
+                continue
             distance = self.manhattan_distance(new_position, self.target_position)
             distances.append(distance)
 

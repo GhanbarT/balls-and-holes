@@ -24,18 +24,18 @@ class DrawableAgent:
                  score: int = 0,
                  agent: 'Agent' = None):
         if agent is not None:
-            self.agent_id = str(agent.agent_id)
+            self.agent_id = deepcopy(agent.agent_id)
             self.position = deepcopy(agent.position)
             self.target_position = deepcopy(agent.target_position)
-            self.direction = str(agent.direction)
+            self.direction = deepcopy(agent.direction)
             self.has_ball = bool(agent.has_ball)
             self.battery = int(agent.battery)
             self.score = int(agent.get_my_score())
         else:
-            self.agent_id = str(agent_id)
+            self.agent_id = deepcopy(agent_id)
             self.position = deepcopy(position)
             self.target_position = deepcopy(target_position)
-            self.direction = str(direction)
+            self.direction = deepcopy(direction)
             self.has_ball = bool(has_ball)
             self.battery = int(battery)
             self.score = int(score)
@@ -367,7 +367,7 @@ class Controller:
             agent.see(surrounding_cells).action(self.playground)
 
         # TODO: add verbose condition for printing the information
-        print(f'Iteration: {len(self.draws)} - Detected Holes Filled: {self.agents[0].get_all_agents_score()}')
+        print(f'Iteration: {len(self.draws)}\nAgent 0: {self.agents[0]}\nAgent 1: {self.agents[1]}\n=====================================')
         # Create a new draw object
         self.draws.append(
             Draw(grid=self.playground.grid,
