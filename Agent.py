@@ -3,7 +3,7 @@ import random
 from typing import Tuple, Optional, Set, List, Union, TYPE_CHECKING
 import uuid
 
-from consts import UP, RIGHT, DOWN, LEFT, AGENT, EMPTY, ORB, HOLE, FILLED_HOLE, LOCK
+from consts import UP, RIGHT, DOWN, LEFT, AGENT, EMPTY, ORB, HOLE, FILLED_HOLE, LOCK, VISITED
 from utils import get_new_position
 
 if TYPE_CHECKING:
@@ -30,7 +30,7 @@ class Agent:
         self.visibility = visibility if visibility is not None \
             else [[EMPTY] * field_of_view for _ in range(field_of_view)]
         self.visibility[field_of_view // 2][field_of_view // 2] = self.get_label()
-        self.visited_cell = {self.position}
+        self.visited_cells = {self.position}
         self.friends = list()
 
         # initial direction, battery, has_ball
@@ -83,7 +83,8 @@ class Agent:
         new_position = get_new_position(self.direction, self.position)
         if environment.agent_enter_cell(new_position, self):
             self.position = new_position
-            self.visited_cell.add(new_position)
+            self.visited_cells.add(new_position)
+            self.inform_friends_v2(VISITED, 1, [new_position])
 
         return True
 
@@ -104,6 +105,7 @@ class Agent:
         if environment.pick_orb(self.position):
             self.has_ball = True
             self.orb_positions.remove(self.position)
+            self.inform_friends_v2(ORB, -1, [self.position])
             return True
         return False
 
@@ -118,13 +120,13 @@ class Agent:
             A boolean value indicating whether the operation was successful. Returns True if the agent placed a ball in a hole successfully,
             and False if the operation failed (for example, if the agent does not have a ball or there is no hole at the agent's position).
         """
-        # self.target_position = None
         if not self.has_ball:
             return False
 
         if environment.place_orb(self.position, self):
             self.has_ball = False
             self.hole_positions.remove(self.position)
+            self.inform_friends_v2(FILLED_HOLE, -1, [self.position])
             return True
         return False
 
@@ -163,7 +165,16 @@ class Agent:
                     if (env_x, env_y) in self.hole_positions:
                         self.hole_positions.remove((env_x, env_y))
 
-        # TODO: we can send all data (orb, hole and filled hole) to friends here, is it a good idea?
+                # remove the orb from the orb_positions list if the cell is empty and there is an orb in the cell,
+                # or it is better to check this in `interact_with_environment` method?
+                if EMPTY == self.visibility[i][j] and (env_x, env_y) in self.orb_positions:
+                    self.orb_positions.remove((env_x, env_y))
+                    self.inform_friends_v2(ORB, -1, [(env_x, env_y)])
+
+        # note: we can send all data (orb, hole and filled hole) to friends here, is it a good idea?
+        self.inform_friends_v2(ORB, 1, self.orb_positions)
+        self.inform_friends_v2(HOLE, 1, self.hole_positions)
+        self.inform_friends_v2(FILLED_HOLE, 1, list(self.filled_hole_positions))
 
     def add_friends(self, friends: Union['Agent', List['Agent']]) -> List['Agent']:
         """
@@ -186,30 +197,8 @@ class Agent:
         self.friends.extend(new_friends)
         return self.friends
 
-    def receive_friend_info(self,
-                            hole_positions: List[Tuple[int, int]],
-                            orb_positions: List[Tuple[int, int]],
-                            filled_hole_positions: Set[Tuple[int, int]]) -> 'Agent':
-        """
-        Receives information from friends and updates the agent's knowledge.
-
-        Args:
-            hole_positions: A list of tuples representing the positions of the holes.
-            orb_positions: A list of tuples representing the positions of the orbs.
-            filled_hole_positions: A set of tuples representing the positions of the filled holes.
-
-        Returns:
-            The agent object itself.
-        """
-        # Add or append the input arguments to the class variables
-        self.hole_positions += [pos for pos in hole_positions if pos not in self.hole_positions]
-        self.orb_positions += [pos for pos in orb_positions if pos not in self.orb_positions]
-        self.filled_hole_positions.update(filled_hole_positions)
-
-        return self
-
     def receive_friends_info_v2(self,
-                                info_type: [ORB, HOLE, FILLED_HOLE, LOCK],
+                                info_type: [ORB, HOLE, FILLED_HOLE, LOCK, VISITED],
                                 status: [-1, 1],
                                 positions: List[Tuple[int, int]]) -> 'Agent':
         """
@@ -217,7 +206,7 @@ class Agent:
 
         Args:
             info_type: A string representing the type of information to be received.
-                    types: ORB, HOLE, FILLED_HOLE
+                    types: ORB, HOLE, FILLED_HOLE, LOCK, VISITED
             status: A integer representing the status of the information
                     1: add the information to the friend's knowledge
                     -1: remove the information from the friend's knowledge
@@ -227,7 +216,9 @@ class Agent:
             The agent object itself.
         """
         if status == 1:
-            if info_type == ORB:
+            if info_type == VISITED:
+                self.visited_cells.update(positions)
+            elif info_type == ORB:
                 self.orb_positions += [pos for pos in positions if pos not in self.orb_positions]
             elif info_type == HOLE:
                 self.hole_positions += [pos for pos in positions if pos not in self.hole_positions]
@@ -242,11 +233,11 @@ class Agent:
                 self.orb_positions = [pos for pos in self.orb_positions if pos not in positions]
             elif info_type == LOCK:
                 self.locked_positions = [pos for pos in self.locked_positions if pos not in positions]
-            # we don't have hole and filled hole functionality
+            # we don't have visited, hole and filled hole cell functionality
 
         return self
 
-    def lock_sell(self, position: Tuple[int, int]) -> 'Agent':
+    def lock_cell(self, position: Tuple[int, int]) -> 'Agent':
         """
         Locks a cell to prevent other agents from interacting with it.
 
@@ -260,7 +251,7 @@ class Agent:
         self.inform_friends_v2(LOCK, 1, [position])
         return self
 
-    def unlock_sell(self, position: Tuple[int, int]) -> 'Agent':
+    def unlock_cell(self, position: Tuple[int, int]) -> 'Agent':
         """
         Unlocks a cell to allow other agents to interact with it.
 
@@ -275,14 +266,14 @@ class Agent:
             self.inform_friends_v2(LOCK, -1, [position])
         return self
 
-    def inform_friends_v2(self, info_type: [ORB, HOLE, FILLED_HOLE], status: [-1, 1],
+    def inform_friends_v2(self, info_type: [ORB, HOLE, FILLED_HOLE, VISITED], status: [-1, 1],
                           positions: List[Tuple[int, int]]) -> 'Agent':
         """
         Informs friends about the agent's knowledge.
 
         Args:
             info_type: A string representing the type of information to be sent
-                    types: ORB, HOLE, FILLED_HOLE
+                    types: ORB, HOLE, FILLED_HOLE, LOCK, VISITED
             status: A integer representing the status of the information
                     1: add the information to the friend's knowledge
                     -1: remove the information from the friend's knowledge
@@ -296,21 +287,6 @@ class Agent:
 
         return self
 
-    def inform_friends(self) -> 'Agent':
-        """
-        Informs friends about the agent's knowledge.
-
-        Returns:
-            The agent object itself.
-        """
-        # FIXME: instead of sending all the information, we must send data on changing playground state
-        #  for example, if the agent fills a hole, it should inform its friends about the filled hole and remove it from the hole_positions list
-        #  or if the agent picks up an orb, it should inform its friends about the picked orb and remove it from the orb_positions list
-        for friend in self.friends:
-            friend.receive_friend_info(self.hole_positions, self.orb_positions, self.filled_hole_positions)
-
-        return self
-
     def update_target(self, environment: 'Playground') -> None:
         """
         Updates the agent's target position.
@@ -319,14 +295,20 @@ class Agent:
         Otherwise, it sets the target to the nearest hole if the agent has a ball, or the nearest orb if the agent does not have a ball.
         If there are no available targets, it sets a random position in the playground as the target.
         """
+        # TODO: it seems better to find nearest not-locked target every step.
+        #  and also unlock previous target if it is locked
         if self.target_position is not None and self.is_a_random_target is False:
             return
 
+        # if the agent has a ball, the target is the nearest hole; otherwise, it is the nearest orb
         target_list = self.hole_positions if self.has_ball else self.orb_positions
+        # remove locked positions from the target list
+        target_list = [pos for pos in target_list if pos not in self.locked_positions]
 
         if len(target_list) > 0:
             self.target_position = self.find_nearest_target(target_list)
             self.is_a_random_target = False
+            self.lock_cell(position=self.target_position)
         elif self.is_a_random_target is False:
             self.target_position = self.find_random_position(environment)
             self.is_a_random_target = True
@@ -359,12 +341,12 @@ class Agent:
         #     f.write(f'find_random_position {self.visited_cell}\n')
 
         all_cell = set([(i, j) for i in range(environment.xAxis) for j in range(environment.yAxis)])
-        reminded_cell = all_cell - self.visited_cell
+        reminded_cell = all_cell - self.visited_cells
         if len(reminded_cell) > 0:
             return random.choice(list(reminded_cell))
         else:
-            # Logically, this should never happen! =]
-            return self.visited_cell.pop()
+            # Logically, this should never happen! =))
+            return self.visited_cells.pop()
 
     def interact_with_environment(self, environment: 'Playground') -> bool:
         """
@@ -381,8 +363,6 @@ class Agent:
             A boolean value indicating whether the agent interacted with the environment. Returns True if the agent interacted with the environment,
             and False otherwise.
         """
-        # TODO: add checking battery condition
-        #   if batter = 0 -> move not allowed
         if self.has_ball and environment.is_a_hole_cell(self.position):
             self.put_ball_in_hole(environment)
             return True
@@ -396,6 +376,7 @@ class Agent:
             #  or we can do that in any update_item_positions run!
             self.target_position = None
             self.is_a_random_target = False
+            self.unlock_cell(position=self.position)
 
         return False
 
@@ -423,8 +404,11 @@ class Agent:
             self.update_item_positions()
             return self
 
-        self.update_target(environment)
+        # if battery = 0 -> move not allowed
+        if self.battery <= 0:
+            return self
 
+        self.update_target(environment)
         # TODO: check that state if agents reach together
         target_x, target_y = self.target_position
         if self.position[0] < target_x:

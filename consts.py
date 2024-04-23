@@ -26,6 +26,7 @@ ORB = 'orb'
 FILLED_HOLE = 'filled'
 OBSTACLE = 'obstacle'
 OUTSIDE = 'out'
+VISITED = 'visited'
 LOCK = 'lock'
 
 UP = 'up'
