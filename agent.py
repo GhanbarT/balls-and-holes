@@ -4,7 +4,7 @@ import random
 from typing import Tuple, Optional, Set, List, Union, TYPE_CHECKING
 import uuid
 
-from consts import UP, RIGHT, DOWN, LEFT, AGENT, EMPTY, ORB, HOLE, FILLED_HOLE, LOCK, VISITED
+from consts import UP, RIGHT, DOWN, LEFT, AGENT, EMPTY, ORB, HOLE, FILLED_HOLE, LOCK, GONE, VISITED
 from utils import get_new_position
 
 if TYPE_CHECKING:
@@ -31,6 +31,7 @@ class Agent:
         self.visibility = visibility if visibility is not None \
             else [[EMPTY] * field_of_view for _ in range(field_of_view)]
         self.visibility[field_of_view // 2][field_of_view // 2] = self.get_label()
+        self.gone_cells = {self.position}
         self.visited_cells = {self.position}
 
         self.friends = list()
@@ -88,8 +89,8 @@ class Agent:
         new_position = get_new_position(self.direction, self.position)
         if environment.agent_enter_cell(new_position, self):
             self.position = new_position
-            self.visited_cells.add(new_position)
-            self.inform_friends_v2(VISITED, 1, [new_position])
+            self.gone_cells.add(new_position)
+            self.inform_friends_v2(GONE, 1, [new_position])
             return True
 
         return False
@@ -162,6 +163,7 @@ class Agent:
             for j in range(len(self.visibility[i])):
                 # Calculate the actual position of the cell in the playground
                 env_x, env_y = top_left_x + j, top_left_y + i
+                self.visited_cells.add((env_x, env_y))
                 if ORB in self.visibility[i][j] and (env_x, env_y) not in self.orb_positions:
                     self.orb_positions.append((env_x, env_y))
                 if HOLE in self.visibility[i][j] and (env_x, env_y) not in self.hole_positions:
@@ -179,6 +181,7 @@ class Agent:
                     self.inform_friends_v2(ORB, -1, [(env_x, env_y)])
 
         # we can send all data (orb, hole and filled hole) to friends here, is it a good idea? or just send new items ...
+        self.inform_friends_v2(VISITED, 1, list(self.visited_cells))
         self.inform_friends_v2(ORB, 1, self.orb_positions)
         self.inform_friends_v2(HOLE, 1, self.hole_positions)
         self.inform_friends_v2(FILLED_HOLE, 1, list(self.filled_hole_positions))
@@ -205,7 +208,7 @@ class Agent:
         return self.friends
 
     def receive_friends_info_v2(self,
-                                info_type: [ORB, HOLE, FILLED_HOLE, LOCK, VISITED],
+                                info_type: [ORB, HOLE, FILLED_HOLE, LOCK, GONE, VISITED],
                                 status: [-1, 1],
                                 positions: List[Tuple[int, int]]) -> 'Agent':
         """
@@ -213,7 +216,7 @@ class Agent:
 
         Args:
             info_type: A string representing the type of information to be received.
-                    types: ORB, HOLE, FILLED_HOLE, LOCK, VISITED
+                    types: ORB, HOLE, FILLED_HOLE, LOCK, GONE, VISITED
             status: A integer representing the status of the information
                     1: add the information to the friend's knowledge
                     -1: remove the information from the friend's knowledge
@@ -223,6 +226,8 @@ class Agent:
             The agent object itself.
         """
         if status == 1:
+            if info_type == GONE:
+                self.gone_cells.update(positions)
             if info_type == VISITED:
                 self.visited_cells.update(positions)
             elif info_type == ORB:
@@ -274,7 +279,7 @@ class Agent:
         return self
 
     def inform_friends_v2(self,
-                          info_type: [ORB, HOLE, FILLED_HOLE, VISITED],
+                          info_type: [ORB, HOLE, FILLED_HOLE, GONE, VISITED],
                           status: [-1, 1],
                           positions: List[Tuple[int, int]]) -> 'Agent':
         """
@@ -282,7 +287,7 @@ class Agent:
 
         Args:
             info_type: A string representing the type of information to be sent
-                    types: ORB, HOLE, FILLED_HOLE, LOCK, VISITED
+                    types: ORB, HOLE, FILLED_HOLE, LOCK, GONE, VISITED
             status: A integer representing the status of the information
                     1: add the information to the friend's knowledge
                     -1: remove the information from the friend's knowledge
@@ -347,11 +352,14 @@ class Agent:
         """
         all_cell = set([(i, j) for i in range(environment.xAxis) for j in range(environment.yAxis)])
         reminded_cell = all_cell - self.visited_cells
+        if len(reminded_cell) == 0:
+            reminded_cell = all_cell - self.gone_cells
+
         if len(reminded_cell) > 0:
             return random.choice(list(reminded_cell))
         else:
             # it now can happen! because we have two agents, and they can visit all cells
-            return random.choice(list(self.visited_cells))
+            return random.choice(list(self.gone_cells))
 
     def reset_target_position(self) -> None:
         """

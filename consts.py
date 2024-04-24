@@ -27,6 +27,7 @@ FILLED_HOLE = 'filled'
 OBSTACLE = 'obstacle'
 OUTSIDE = 'out'
 VISITED = 'visited'
+GONE = 'gone'
 LOCK = 'lock'
 
 UP = 'up'
