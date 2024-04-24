@@ -1,7 +1,7 @@
 from typing import List, Tuple, Set, TYPE_CHECKING
 import random
 
-from consts import EMPTY, HOLE, ORB, FILLED_HOLE, UP, RIGHT, DOWN, LEFT
+from consts import EMPTY, HOLE, ORB, FILLED_HOLE, UP, RIGHT, DOWN, LEFT, AGENT
 from utils import get_new_position
 
 if TYPE_CHECKING:
@@ -153,7 +153,7 @@ class Playground:
             A boolean value indicating whether the operation was successful. Returns True if the agent entered the cell successfully,
             and False if the operation failed (for example, if the desired position is not valid).
         """
-        if not self.is_valid_position(position):
+        if not self.is_valid_position(position) or AGENT in self.get_cell_state(position):
             return False
         current_cell_state = self.get_cell_state(position)
 

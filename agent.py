@@ -88,8 +88,9 @@ class Agent:
             self.position = new_position
             self.visited_cells.add(new_position)
             self.inform_friends_v2(VISITED, 1, [new_position])
+            return True
 
-        return True
+        return False
 
     def take_ball(self, environment: 'Playground') -> bool:
         """
@@ -175,7 +176,7 @@ class Agent:
                     self.orb_positions.remove((env_x, env_y))
                     self.inform_friends_v2(ORB, -1, [(env_x, env_y)])
 
-        # note: we can send all data (orb, hole and filled hole) to friends here, is it a good idea?
+        # we can send all data (orb, hole and filled hole) to friends here, is it a good idea? or just send new items ...
         self.inform_friends_v2(ORB, 1, self.orb_positions)
         self.inform_friends_v2(HOLE, 1, self.hole_positions)
         self.inform_friends_v2(FILLED_HOLE, 1, list(self.filled_hole_positions))
@@ -348,9 +349,8 @@ class Agent:
         if len(reminded_cell) > 0:
             return random.choice(list(reminded_cell))
         else:
-            # FIXME: it now can happened! because we have two agents and they can visit all cells
-            # Logically, this should never happen! =))
-            return self.visited_cells.pop()
+            # it now can happen! because we have two agents, and they can visit all cells
+            return random.choice(list(self.visited_cells))
 
     def interact_with_environment(self, environment: 'Playground') -> bool:
         """
@@ -412,6 +412,8 @@ class Agent:
 
         # if battery = 0 -> move not allowed
         if self.battery <= 0:
+            if self.battery == 0:
+                self.battery -= 1
             return self
 
         self.update_target(environment)
@@ -422,10 +424,11 @@ class Agent:
         self.update_direction_towards_target()
         if self.is_agent_in_front():
             opposite_agent = self.get_opposite_agent()
-            # vis_x, vis_y = self.get_front_cell_indices()
+
+            # TODO: add an argument to loging in a file
             with open('output.txt', 'a') as f:
                 f.write(
-                    f'{self.visibility};\ncurrent agent: {self};\nopposite agent: {opposite_agent}\n===============================\n')
+                    f'-> Collision\n{self.visibility};\ncurrent agent: {self};\nopposite agent: {opposite_agent}\n===============================\n')
 
             if not self.handle_opposite_agent(opposite_agent, environment):
                 return self
@@ -471,6 +474,7 @@ class Agent:
         Returns:
             The opposite agent in the front of the agent.
         """
+        # note: now we just see in friends list; IDK what we must do if opposite agent is not a friend :)
         vis_x, vis_y = self.get_front_cell_indices()
         return [friend for friend in self.friends if friend.get_label() in self.visibility[vis_y][vis_x]][0]
 
@@ -502,10 +506,11 @@ class Agent:
             A boolean value indicating whether the agent should move.
         """
         # if the other agent has no opposite direction of movement, wait one step (don't move).
-        if not Agent.is_opposite_direction(self.direction, opposite_agent.direction):
+        if not Agent.is_opposite_direction(self.direction,
+                                           opposite_agent.direction) and not opposite_agent.finished_battery():
             return False
 
-        if not self.is_target_in_current_direction():
+        if not self.is_target_in_current_direction() or opposite_agent.finished_battery():
             self.change_direction_and_select_new_road(environment)
             return True
         elif not opposite_agent.is_target_in_current_direction():
@@ -515,8 +520,10 @@ class Agent:
         elif self.battery >= opposite_agent.battery:
             self.change_direction_and_select_new_road(environment)
             return True
-            # Important note: if the paths of both agents are opposite to each other,
-            # we wait until the agent with more charge jumps or makes a decision.
+
+        # Important note: if the paths of both agents are opposite to each other,
+        # we wait until the agent with more charge jumps or makes a decision.
+        return False
 
     def is_target_in_current_direction(self) -> bool:
         """
@@ -584,6 +591,9 @@ class Agent:
             The score of all agents.
         """
         return len(self.filled_hole_positions)
+
+    def finished_battery(self):
+        return self.battery <= 0
 
     def __str__(self):
         return f'Agent ID: {self.agent_id}, Type: {self.type}, Position: {self.position}, Target Position: {self.target_position}, Direction: {self.direction}, Battery: {self.battery}, Has Ball: {self.has_ball}, Score: {len(self.filled_by_me_hole_positions)}'
