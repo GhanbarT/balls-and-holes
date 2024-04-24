@@ -21,7 +21,8 @@ class Agent:
                  field_of_view: int = 3,
                  visibility: list[list[str]] = None,
                  random_seed: Optional[int] = None,
-                 battery: int = 30):
+                 battery: int = 30,
+                 log_file: str = None):
         self.agent_id = agent_id if agent_id is not None \
             else str(uuid.uuid4())  # Assign a random UUID if no ID is provided
         self.type = agent_type
@@ -55,6 +56,7 @@ class Agent:
         # I think this is enough and there will be no need to have two different lists
         self.locked_positions: list[Tuple[int, int]] = list()
 
+        self.log_file = log_file
         if random_seed:
             random.seed = random_seed
 
@@ -309,8 +311,6 @@ class Agent:
         Otherwise, it sets the target to the nearest hole if the agent has a ball, or the nearest orb if the agent does not have a ball.
         If there are no available targets, it sets a random position in the playground as the target.
         """
-        # TODO: it seems better to find nearest not-locked target every step.
-        #  and also unlock previous target if it is locked and lock new target
         if self.target_position is not None and self.is_a_random_target is False:
             return
 
@@ -437,16 +437,23 @@ class Agent:
         if self.is_agent_in_front():
             opposite_agent = self.get_opposite_agent()
 
-            # TODO: add an argument to loging in a file
-            with open('output.txt', 'a') as f:
-                f.write(
-                    f'-> Collision\n{self.visibility};\ncurrent agent: {self};\nopposite agent: {opposite_agent}\n===============================\n')
+            if self.log_file:
+                self.log_collision(opposite_agent, environment)
 
             if not self.handle_opposite_agent(opposite_agent, environment):
                 return self
 
         self.take_step_forward(environment)
         return self
+
+    def log_collision(self, opposite_agent: 'Agent', environment: 'Playground') -> None:
+        with open(self.log_file, 'a') as f:
+            f.write(
+                f'-> Collision\n'
+                f'{self.visibility};\n'
+                f'current agent: {self};\n'
+                f'opposite agent: {opposite_agent}\n'
+                f'{"=" * 20}\n')
 
     def update_direction_towards_target(self) -> None:
         """
@@ -530,6 +537,7 @@ class Agent:
             opposite_agent.is_new_road = True
             return False
         elif self.battery >= opposite_agent.battery:
+            # TODO: we can also set a condition for random target position
             self.change_direction_and_select_new_road(environment)
             return True
 
@@ -563,7 +571,6 @@ class Agent:
 
         for direction in possible_directions:
             new_position = get_new_position(direction, self.position)
-            # TODO: use visibility instead of environment
             if not environment.is_valid_position(new_position):
                 distances.append(cmath.inf)
                 continue

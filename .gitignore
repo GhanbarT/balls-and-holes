@@ -160,5 +160,5 @@ cython_debug/
 .idea/
 
 # output file
-output.txt
+*.txt
 /activate.ps1

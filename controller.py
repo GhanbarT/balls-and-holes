@@ -170,18 +170,20 @@ class Draw:
 
 
 class Controller:
-    def __init__(self, playground: 'Playground'):
+    def __init__(self, playground: 'Playground', log_file: str = None):
         self.playground = playground
         self.agents: List[Agent] = []  # List to store all agents
         self.draws: list[Draw] = []
         self.draw_index = 0
+        self.log_file = log_file
 
     def create_agent(self,
                      agent_id: Optional[str] = None,
                      agent_type: int = 1,
                      position: Optional[Tuple[int, int]] = None,
                      field_of_view: Optional[int] = 3,
-                     battery=30) -> Optional['Agent']:
+                     battery=30,
+                     log_file: str = None) -> Optional['Agent']:
         """
         Creates a new agent and adds it to the playground.
 
@@ -204,7 +206,8 @@ class Controller:
                       agent_type=agent_type,
                       position=position,
                       field_of_view=field_of_view,
-                      battery=battery)
+                      battery=battery,
+                      log_file=self.log_file)
         if self.playground.add_agent(agent):
             self.agents.append(agent)  # Add the new agent to the list of agents
             return agent
@@ -314,6 +317,10 @@ class Controller:
         """
         Starts the game by placing holes and orbs, and creating a new draw object.
         """
+        if self.log_file:
+            with open(self.log_file, 'w'):
+                pass
+
         self.playground.place_holes_and_orbs()
         self.introduce_friends()
 
@@ -366,8 +373,6 @@ class Controller:
                                                                       field_of_view=agent.field_of_view)
             agent.see(surrounding_cells).action(self.playground)
 
-        # TODO: add verbose condition for printing the information
-        print(f'Iteration: {len(self.draws)}\nAgent 0: {self.agents[0]}\nAgent 1: {self.agents[1]}\n=====================================')
         # Create a new draw object
         self.draws.append(
             Draw(grid=self.playground.grid,
@@ -460,7 +465,7 @@ class Controller:
         """
         return min(self.playground.num_holes, self.playground.num_orbs)
 
-    def is_last_draw_index(self):
+    def is_last_draw_index(self) -> bool:
         """
         Checks if the current draw index is the last one.
 
@@ -468,3 +473,28 @@ class Controller:
             bool: True if the current draw index is the last one, False otherwise.
         """
         return self.draw_index == len(self.draws) - 1
+
+    def agents_reached_max_score(self, agent_type: int = 1) -> bool:
+        """
+        Checks if all agents of the specified type have reached the maximum score.
+
+        Args:
+            agent_type: An integer representing the agent type.
+
+        Returns:
+            bool: True if all agents of the specified type have reached the maximum score, False otherwise.
+        """
+        return self.get_agents_by_type(agent_type)[0].get_all_agents_score() == self.get_max_score()
+
+    def game_over(self, agent_type: int = 1) -> bool:
+        """
+        Checks if the game is over for the specified agent type.
+
+        Args:
+            agent_type: An integer representing the agent type.
+
+        Returns:
+            bool: True if the game is over for the specified agent type, False otherwise.
+        """
+        return self.agents_reached_max_score() or all(
+            agent.battery < 0 for agent in self.get_agents_by_type(agent_type))
