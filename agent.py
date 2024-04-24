@@ -1,3 +1,4 @@
+import cmath
 import random
 
 from typing import Tuple, Optional, Set, List, Union, TYPE_CHECKING
@@ -31,6 +32,7 @@ class Agent:
             else [[EMPTY] * field_of_view for _ in range(field_of_view)]
         self.visibility[field_of_view // 2][field_of_view // 2] = self.get_label()
         self.visited_cells = {self.position}
+
         self.friends = list()
 
         # initial direction, battery, has_ball
@@ -331,7 +333,6 @@ class Agent:
             A tuple containing two integers representing the row and column indices of the nearest target.
         """
         nearest_target = min(target_list, key=lambda pos: Agent.manhattan_distance(self.position, pos))
-        target_list.remove(nearest_target)
         return nearest_target
 
     def find_random_position(self, environment: 'Playground') -> Tuple[int, int]:
@@ -352,6 +353,15 @@ class Agent:
             # it now can happen! because we have two agents, and they can visit all cells
             return random.choice(list(self.visited_cells))
 
+    def reset_target_position(self) -> None:
+        """
+        Resets the target position of the agent.
+        If the agent has a target position, it resets the target position and sets the is_a_random_target flag to False.
+        """
+        self.unlock_cell(position=self.target_position)
+        self.target_position = None
+        self.is_a_random_target = False
+
     def interact_with_environment(self, environment: 'Playground') -> bool:
         """
         Allows the agent to interact with its environment.
@@ -368,21 +378,14 @@ class Agent:
             and False otherwise.
         """
         if self.has_ball and environment.is_a_hole_cell(self.position):
-            self.unlock_cell(position=self.target_position)
-            self.put_ball_in_hole(environment)
-            return True
+            self.reset_target_position()
+            return self.put_ball_in_hole(environment)
         if not self.has_ball and environment.is_a_orb_cell(self.position):
-            self.unlock_cell(position=self.target_position)
-            self.take_ball(environment)
-            return True
+            self.reset_target_position()
+            return self.take_ball(environment)
 
         if self.target_position == self.position:
-            #  check if current position is in the orb_positions list but there is no orb in the cell
-            #  then the agent should remove the position from the orb_positions list and inform its friends,
-            #  or we can do that in any update_item_positions run. (done!)
-            self.unlock_cell(position=self.target_position)
-            self.target_position = None
-            self.is_a_random_target = False
+            self.reset_target_position()
 
         return False
 
@@ -408,6 +411,7 @@ class Agent:
             self.visibility[self.field_of_view // 2][self.field_of_view // 2] = environment.get_cell_state(
                 self.position)
             self.update_item_positions()
+            self.update_target(environment)
             return self
 
         # if battery = 0 -> move not allowed
@@ -553,13 +557,14 @@ class Agent:
             new_position = get_new_position(direction, self.position)
             # TODO: use visibility instead of environment
             if not environment.is_valid_position(new_position):
+                distances.append(cmath.inf)
                 continue
             distance = self.manhattan_distance(new_position, self.target_position)
             distances.append(distance)
 
         min_distance = min(distances)
         min_index = distances.index(min_distance)
-        self.direction = self.directions[min_index]
+        self.direction = possible_directions[min_index]
 
     def get_label(self) -> str:
         """
