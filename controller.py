@@ -182,8 +182,7 @@ class Controller:
                      agent_type: int = 1,
                      position: Optional[Tuple[int, int]] = None,
                      field_of_view: Optional[int] = 3,
-                     battery=30,
-                     log_file: str = None) -> Optional['Agent']:
+                     battery=30) -> Optional['Agent']:
         """
         Creates a new agent and adds it to the playground.
 

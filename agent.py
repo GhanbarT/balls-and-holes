@@ -176,12 +176,6 @@ class Agent:
                     if (env_x, env_y) in self.hole_positions:
                         self.hole_positions.remove((env_x, env_y))
 
-                # remove the orb from the orb_positions list if the cell is empty and there is an orb in the cell,
-                # or it is better to check this in `interact_with_environment` method?
-                if EMPTY == self.visibility[i][j] and (env_x, env_y) in self.orb_positions:
-                    self.orb_positions.remove((env_x, env_y))
-                    self.inform_friends_v2(ORB, -1, [(env_x, env_y)])
-
         # we can send all data (orb, hole and filled hole) to friends here, is it a good idea? or just send new items ...
         self.inform_friends_v2(VISITED, 1, list(self.visited_cells))
         self.inform_friends_v2(ORB, 1, self.orb_positions)
@@ -265,7 +259,7 @@ class Agent:
         self.inform_friends_v2(LOCK, 1, [position])
         return self
 
-    def unlock_cell(self, position: Tuple[int, int]) -> 'Agent':
+    def unlock_cell(self, position: Tuple[int, int] | None) -> 'Agent':
         """
         Unlocks a cell to allow other agents to interact with it.
 
@@ -307,23 +301,29 @@ class Agent:
         """
         Updates the agent's target position.
 
-        If the agent already has a target, and it is not a random target, this method does nothing.
-        Otherwise, it sets the target to the nearest hole if the agent has a ball, or the nearest orb if the agent does not have a ball.
+        The agent sets the target to the nearest hole if the agent has a ball, or the nearest orb if the agent does not have a ball.
         If there are no available targets, it sets a random position in the playground as the target.
         """
-        if self.target_position is not None and self.is_a_random_target is False:
-            return
-
         # if the agent has a ball, the target is the nearest hole; otherwise, it is the nearest orb
         target_list = self.hole_positions if self.has_ball else self.orb_positions
+
+        # if item in target position was removed by other agent, we must select new target
+        if self.target_position not in target_list and self.is_a_random_target is False:
+            self.reset_target_position()
+
         # remove locked positions from the target list
         target_list = [pos for pos in target_list if pos not in self.locked_positions]
 
         if len(target_list) > 0:
-            self.target_position = self.find_nearest_target(target_list)
-            self.is_a_random_target = False
-            self.lock_cell(position=self.target_position)
-        elif self.is_a_random_target is False:
+            nearest_target = self.find_nearest_target(target_list)
+            # If the agent doesn't have a specific target or the new target is closer than the current target, update the target
+            if (self.target_position is None or self.is_a_random_target or
+                    Agent.manhattan_distance(self.position, nearest_target) <
+                    Agent.manhattan_distance(self.position, self.target_position)):
+                self.reset_target_position()
+                self.target_position = nearest_target
+                self.lock_cell(position=self.target_position)
+        elif self.is_a_random_target is False and self.target_position is None:
             self.target_position = self.find_random_position(environment)
             self.is_a_random_target = True
 
@@ -385,6 +385,12 @@ class Agent:
             A boolean value indicating whether the agent interacted with the environment. Returns True if the agent interacted with the environment,
             and False otherwise.
         """
+        # remove the orb from the orb_positions list if the cell is empty and there is an orb in the cell,
+        # for example, another agent has taken the orb or the orb has been switched position
+        if self.position in self.orb_positions and not environment.is_a_orb_cell(self.position):
+            self.orb_positions.remove(self.position)
+            self.inform_friends_v2(ORB, -1, [self.position])
+
         if self.has_ball and environment.is_a_hole_cell(self.position):
             self.reset_target_position()
             return self.put_ball_in_hole(environment)
@@ -415,9 +421,8 @@ class Agent:
         """
         self.update_item_positions()
         if self.interact_with_environment(environment):
-            # updated items in playground (in agent position) so update the visibility
-            self.visibility[self.field_of_view // 2][self.field_of_view // 2] = environment.get_cell_state(
-                self.position)
+            # updated items in playground so update the visibility
+            self.see(environment.get_surrounding_cells(self.position, self.field_of_view))
             self.update_item_positions()
             self.update_target(environment)
             return self
@@ -438,22 +443,13 @@ class Agent:
             opposite_agent = self.get_opposite_agent()
 
             if self.log_file:
-                self.log_collision(opposite_agent, environment)
+                self.log_collision(opposite_agent)
 
             if not self.handle_opposite_agent(opposite_agent, environment):
                 return self
 
         self.take_step_forward(environment)
         return self
-
-    def log_collision(self, opposite_agent: 'Agent', environment: 'Playground') -> None:
-        with open(self.log_file, 'a') as f:
-            f.write(
-                f'-> Collision\n'
-                f'{self.visibility};\n'
-                f'current agent: {self};\n'
-                f'opposite agent: {opposite_agent}\n'
-                f'{"=" * 20}\n')
 
     def update_direction_towards_target(self) -> None:
         """
@@ -614,6 +610,15 @@ class Agent:
 
     def finished_battery(self):
         return self.battery <= 0
+
+    def log_collision(self, opposite_agent: 'Agent') -> None:
+        with open(self.log_file, 'a') as f:
+            f.write(
+                f'-> Collision\n'
+                f'{self.visibility};\n'
+                f'current agent: {self};\n'
+                f'opposite agent: {opposite_agent}\n'
+                f'{"=" * 20}\n')
 
     def __str__(self):
         return f'Agent ID: {self.agent_id}, Type: {self.type}, Position: {self.position}, Target Position: {self.target_position}, Direction: {self.direction}, Battery: {self.battery}, Has Ball: {self.has_ball}, Score: {len(self.filled_by_me_hole_positions)}'
