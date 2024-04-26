@@ -1,5 +1,6 @@
-from typing import List, Tuple, Set, TYPE_CHECKING
+import random_seed
 import random
+from typing import List, Tuple, Set, TYPE_CHECKING
 
 from consts import EMPTY, HOLE, ORB, FILLED_HOLE, UP, RIGHT, DOWN, LEFT, AGENT
 from utils import get_new_position

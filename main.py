@@ -1,4 +1,6 @@
 import argparse
+import random_seed
+
 from controller import Controller
 from playground import Playground
 from utils import get_key_action
@@ -49,7 +51,11 @@ if __name__ == '__main__':
     parser.add_argument('-agents', type=str,
                         help='Agents\' positions and types (default: None).format:<x,y,type;x,y,type;...>.example: 0,0,1;6,4,2')
     parser.add_argument('-log', type=str, help='Log file name (default: None)')
+    parser.add_argument('-seed', type=int, default=None, help='Seed for the random number generator if you want retry a run (default: None)')
     args = parser.parse_args()
+
+    random_seed_instance = random_seed.RandomSeed()
+    random_seed_instance.set_seed(args.seed)
 
     dim_x, dim_y = map(int, args.dim.split(','))
     playground = Playground(dimensions=(dim_x, dim_y), num_orbs=args.ball, num_holes=args.hole)

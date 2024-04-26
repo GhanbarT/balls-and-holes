@@ -1,3 +1,4 @@
+import random_seed
 import random
 from copy import deepcopy
 from typing import List, Tuple, Optional, TYPE_CHECKING
@@ -103,7 +104,7 @@ class Draw:
             self.print_info()
 
         print(
-            f'------------------------------- {bcolors.LIGHT_YELLOW_HIGHLIGHT}{bcolors.BLACK} Iteration: {str(self.iteration).rjust(3)} - Detected Holes Filled: {str(self.score).rjust(2)} {bcolors.ENDC} -------------------------------')
+            f'---------- {bcolors.LIGHT_YELLOW_HIGHLIGHT}{bcolors.BLACK} Iteration: {str(self.iteration).rjust(3)} - Detected Holes Filled (Score): {str(self.score).rjust(2)} - Seed: {random_seed.RandomSeed().get_seed()} {bcolors.ENDC} ----------')
 
     def print_info(self) -> None:
         """
