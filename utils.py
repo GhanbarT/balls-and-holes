@@ -16,15 +16,12 @@ def get_key_action():
         'enter' if 'Enter' key is pressed.
         None if any other key is pressed.
     """
-
     # Initialize curses
     curses.cbreak()
     term.Term().get_term().keypad(True)
-
     try:
         # Wait for a key press
         key = term.Term().get_term().getch()
-
         # Handle key presses
         if key == curses.KEY_RIGHT or key == ord('d'):  # if 'right' arrow key or 'd' is pressed
             return 'next'
@@ -32,13 +29,12 @@ def get_key_action():
             return 'previous'
         elif key == curses.KEY_ENTER or key == 10:  # if 'Enter' key is pressed
             return 'enter'
-        
+
     except KeyboardInterrupt:
         curses.nocbreak()
         term.Term().get_term().keypad(False)
         curses.echo()
         curses.endwin()
-
         sys.exit(-1)
 
     return None

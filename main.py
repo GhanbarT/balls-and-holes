@@ -8,13 +8,12 @@ except ImportError:
 
 import argparse
 import random_seed
-import term
+from term import Term
 
+from consts import COLORS_MAP
 from controller import Controller
 from playground import Playground
 from utils import get_key_action
-
-from term import Term
 
 
 def print_guid(last_index=False) -> None:
@@ -22,7 +21,7 @@ def print_guid(last_index=False) -> None:
     next_str = "" if last_index else "\n[-->]/[d]/[D]: Next step"
     exit_str = "\n" + ("[⏎]/[Enter]/" if last_index else "") + "[Ctrl+C]: Exit"
 
-    Term().print("\n" + prev_str + next_str + exit_str + "\n")
+    Term().print("\n" + prev_str + next_str + exit_str + "\n", 1)
 
     if last_index:
         success_message = "Agent completed the task successfully"
@@ -69,7 +68,7 @@ if __name__ == '__main__':
     random_seed_instance = random_seed.RandomSeed()
     random_seed_instance.set_seed(args.seed)
 
-    _ = term.Term()
+    Term().add_color(1, COLORS_MAP[1])
 
     dim_x, dim_y = map(int, args.dim.split(','))
     playground = Playground(dimensions=(dim_x, dim_y), num_orbs=args.ball, num_holes=args.hole)

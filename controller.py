@@ -93,7 +93,8 @@ class Draw:
                 f'\n-> Having Ball'
                 f'\n-> On Ball Cell'
                 f'\n-> On Hole Cell'
-                f'\n-> On Filled Hole Cell\n'
+                f'\n-> On Filled Hole Cell\n',
+                color=2  # Use color pair 2
             )
 
         if info:

@@ -1,4 +1,19 @@
+import curses
+
 UUID_LEN = 36
+
+HAVING_ORB = 1
+ORB_CELL = 2
+HOLE_CELL = 3
+FILLED_HOLE_CELL = 4
+
+COLORS_MAP = {
+    0: curses.COLOR_BLACK,
+    1: curses.COLOR_RED,
+    2: curses.COLOR_CYAN,
+    3: curses.COLOR_YELLOW,
+    4: curses.COLOR_GREEN,
+}
 
 BOX_TOP_LEFT = '╚'
 BOX_TOP_RIGHT = '╝'
@@ -27,6 +42,12 @@ UP = 'up'
 RIGHT = 'right'
 DOWN = 'down'
 LEFT = 'left'
+
+CELL_COLORS = {
+    ORB: ORB_CELL,
+    HOLE: HOLE_CELL,
+    FILLED_HOLE: FILLED_HOLE_CELL
+}
 
 ICONS = {
     EMPTY: ' ' * 5,
