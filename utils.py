@@ -1,17 +1,8 @@
-import os
-from consts import UP, RIGHT, DOWN, LEFT
+from consts import *
+import sys
 
-
-def clear_screen() -> None:
-    """
-    Clears the terminal screen. Works on both Windows ('nt') and Unix-based ('posix') systems.
-    """
-    # for windows
-    if os.name == 'nt':
-        _ = os.system('cls')
-    # for mac and linux(here, os.name is 'posix')
-    else:
-        _ = os.system('clear')
+import term
+import curses
 
 
 def get_key_action():
@@ -25,36 +16,31 @@ def get_key_action():
         'enter' if 'Enter' key is pressed.
         None if any other key is pressed.
     """
-    if os.name == 'nt':  # Windows
-        import msvcrt
-        key = msvcrt.getch()
-        if key == b'\x03':  # if 'Ctrl + C' is pressed
-            exit(-1)
-        if key == b'\xe0':  # if the first byte of an arrow key escape sequence is received
-            key += msvcrt.getch()  # get the second byte and form the escape sequence
-        if key in [b'd', b'D', b'\xe0M']:  # if 'd' or 'right' arrow key is pressed
+
+    # Initialize curses
+    curses.cbreak()
+    term.Term().get_term().keypad(True)
+
+    try:
+        # Wait for a key press
+        key = term.Term().get_term().getch()
+
+        # Handle key presses
+        if key == curses.KEY_RIGHT or key == ord('d'):  # if 'right' arrow key or 'd' is pressed
             return 'next'
-        elif key in [b'a', b'A', b'\xe0K']:  # if 'a' or 'left' arrow key is pressed
-            return 'previous'
-        elif key == b'\r':  # if 'Enter' key is pressed
-            return 'enter'
-    else:  # Unix-based
-        import curses
-        stdscr = curses.initscr()
-        curses.cbreak()
-        stdscr.keypad(True)
-        key = stdscr.getch()
-        if key in [curses.KEY_RIGHT, ord('d')]:  # if 'right' arrow key or 'd' is pressed
-            return 'next'
-        elif key in [curses.KEY_LEFT, ord('a')]:  # if 'left' arrow key or 'a' is pressed
+        elif key == curses.KEY_LEFT or key == ord('a'):  # if 'left' arrow key or 'a' is pressed
             return 'previous'
         elif key == curses.KEY_ENTER or key == 10:  # if 'Enter' key is pressed
             return 'enter'
-        # Restore the terminal settings
+        
+    except KeyboardInterrupt:
         curses.nocbreak()
-        stdscr.keypad(False)
+        term.Term().get_term().keypad(False)
         curses.echo()
         curses.endwin()
+
+        sys.exit(-1)
+
     return None
 
 

@@ -1,25 +1,32 @@
+import os
+
+if os.name == 'nt':
+    os.system("pip install windows-curses")
+
 import argparse
 import random_seed
+import term
 
 from controller import Controller
 from playground import Playground
 from utils import get_key_action
-from bcolors import GREEN_HIGHLIGHT, ENDC, RED_HIGHLIGHT
 
+from term import Term
 
 def print_guid(last_index=False) -> None:
     prev_str = "\n[<--]/[a]/[A]: Previous step"
     next_str = "" if last_index else "\n[-->]/[d]/[D]: Next step"
     exit_str = "\n" + ("[⏎]/[Enter]/" if last_index else "") + "[Ctrl+C]: Exit"
-    print("\n" + prev_str + next_str + exit_str)
+    
+    Term().print("\n" + prev_str + next_str + exit_str)
 
     if last_index:
-        success_message = GREEN_HIGHLIGHT + "Agent completed the task successfully" + ENDC
-        failure_message = RED_HIGHLIGHT + "Agent failed the task successfully" + ENDC
+        success_message = "Agent completed the task successfully"
+        failure_message = "Agent failed the task successfully"
         if controller.agents_reached_max_score():
-            print(success_message)
+            Term().print(success_message)
         else:
-            print(failure_message)
+            Term().print(failure_message)
 
 
 def v2(show_legends: bool, show_info: bool):
@@ -56,6 +63,8 @@ if __name__ == '__main__':
 
     random_seed_instance = random_seed.RandomSeed()
     random_seed_instance.set_seed(args.seed)
+    
+    _ = term.Term()
 
     dim_x, dim_y = map(int, args.dim.split(','))
     playground = Playground(dimensions=(dim_x, dim_y), num_orbs=args.ball, num_holes=args.hole)

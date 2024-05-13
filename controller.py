@@ -3,12 +3,11 @@ import random
 from copy import deepcopy
 from typing import List, Tuple, Optional, TYPE_CHECKING
 
-import bcolors
-from consts import UUID_LEN, HAVING_ORB, ORB_CELL, HOLE_CELL, FILLED_HOLE_CELL, EMPTY, OBSTACLE, ICONS, AGENT, \
-    CELL_COLORS, ARROWS, HOLE, ORB, FILLED_HOLE, UP
+from consts import *
 
 from agent import Agent
-from utils import clear_screen
+
+from term import Term
 
 if TYPE_CHECKING:
     from playground import Playground
@@ -88,23 +87,24 @@ class Draw:
         output_str = '\n'.join(output)
 
         if cls:
-            clear_screen()
+            Term().get_term().clear()
 
-        print(output_str)
+        Term().print(output_str)
 
         if legends:
-            print(
-                f'{bcolors.LIGHT_MAGENTA_HIGHLIGHT}----Legends----{bcolors.ENDC}'
-                f'\n-> {HAVING_ORB}Having Ball{bcolors.ENDC}'
-                f'\n-> {ORB_CELL}on Ball Cell{bcolors.ENDC}'
-                f'\n-> {HOLE_CELL}on Hole Cell{bcolors.ENDC}'
-                f'\n-> {FILLED_HOLE_CELL}on Filled Hole Cell{bcolors.ENDC}')
+            Term().print(
+                f'\n----Legends----'
+                f'\n-> Having Ball'
+                f'\n-> On Ball Cell'
+                f'\n-> On Hole Cell'
+                f'\n-> On Filled Hole Cell\n'
+            )
 
         if info:
             self.print_info()
 
-        print(
-            f'---------- {bcolors.LIGHT_YELLOW_HIGHLIGHT}{bcolors.BLACK} Iteration: {str(self.iteration).rjust(3)} - Detected Holes Filled (Score): {str(self.score).rjust(2)} - Seed: {random_seed.RandomSeed().get_seed()} {bcolors.ENDC} ----------')
+
+        Term().print(f'\n---------- Iteration: {str(self.iteration).rjust(3)} - Detected Holes Filled (Score): {str(self.score).rjust(2)} - Seed: {random_seed.RandomSeed().get_seed()} ----------')
 
     def print_info(self) -> None:
         """
@@ -121,21 +121,21 @@ class Draw:
         column_widths = [UUID_LEN] + [len(title) for title, _ in columns[1:]]
 
         # Print the top border
-        print('┌' + '┬'.join('─' * width for width in column_widths) + '┐')
+        
+        Term().print('┌' + '┬'.join('─' * width for width in column_widths) + '┐' + '\n')
         # Print the column titles
-        print('│' + '│'.join(f"{title.ljust(width)}" for (title, _), width in zip(columns, column_widths)) + '│')
+        Term().print('│' + '│'.join(f"{title.ljust(width)}" for (title, _), width in zip(columns, column_widths)) + '│' + '\n')
         # Print the separator line
-        print('├' + '┼'.join('─' * width for width in column_widths) + '┤')
+        Term().print('├' + '┼'.join('─' * width for width in column_widths) + '┤' + '\n')
 
         # Print the values for each agent
         for i, agent in enumerate(self.agents):
             if i > 0:
-                print('├' + '┼'.join('─' * width for width in column_widths) + '┤')
-            print('│' + '│'.join(
-                f"{value_func(agent).ljust(width)}" for (_, value_func), width in zip(columns, column_widths)) + '│')
+                Term().print('├' + '┼'.join('─' * width for width in column_widths) + '┤' + '\n')
+            Term().print('│' + '│'.join(f"{value_func(agent).ljust(width)}" for (_, value_func), width in zip(columns, column_widths)) + '│'+ '\n')
 
         # Print the bottom border
-        print('└' + '┴'.join('─' * width for width in column_widths) + '┘')
+        Term().print('└' + '┴'.join('─' * width for width in column_widths) + '┘' + '\n')
 
     @staticmethod
     def get_icon(agents: List['Agent'] | List['DrawableAgent'], factor: str, random_space=False) -> str:
@@ -159,12 +159,8 @@ class Draw:
             # FIXME: refactor AGENT handling and other factors in a more general way.
             agent_id = factors[-1][len(AGENT) + 1:]
             agent = Controller.find_agent(agents, agent_id)
-            text_color = HAVING_ORB if agent.has_ball else ''
-
-            if len(factors) > 1:
-                text_color += CELL_COLORS.get(factors[0], '')
-
-            return text_color + ARROWS[agent.direction] + ICONS[AGENT] + agent_id[0:2] + bcolors.ENDC
+            
+            return ARROWS[agent.direction] + ICONS[AGENT] + agent_id[0:2]
 
         if factor == HOLE or factor == ORB or factor == FILLED_HOLE:
             return ICONS[factor] + ' ' if random.choice([False, random_space]) else ' ' + ICONS[factor]
