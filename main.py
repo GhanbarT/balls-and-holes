@@ -1,7 +1,10 @@
 import os
 
-if os.name == 'nt':
-    os.system("pip install windows-curses")
+try:
+    import curses
+except ImportError:
+    if os.name == 'nt':
+        os.system("pip install -q windows-curses")
 
 import argparse
 import random_seed
@@ -13,12 +16,13 @@ from utils import get_key_action
 
 from term import Term
 
+
 def print_guid(last_index=False) -> None:
     prev_str = "\n[<--]/[a]/[A]: Previous step"
     next_str = "" if last_index else "\n[-->]/[d]/[D]: Next step"
     exit_str = "\n" + ("[⏎]/[Enter]/" if last_index else "") + "[Ctrl+C]: Exit"
-    
-    Term().print("\n" + prev_str + next_str + exit_str)
+
+    Term().print("\n" + prev_str + next_str + exit_str + "\n")
 
     if last_index:
         success_message = "Agent completed the task successfully"
@@ -58,12 +62,13 @@ if __name__ == '__main__':
     parser.add_argument('-agents', type=str,
                         help='Agents\' positions and types (default: None).format:<x,y,type;x,y,type;...>.example: 0,0,1;6,4,2')
     parser.add_argument('-log', type=str, help='Log file name (default: None)')
-    parser.add_argument('-seed', type=int, default=None, help='Seed for the random number generator if you want retry a run (default: None)')
+    parser.add_argument('-seed', type=int, default=None,
+                        help='Seed for the random number generator if you want retry a run (default: None)')
     args = parser.parse_args()
 
     random_seed_instance = random_seed.RandomSeed()
     random_seed_instance.set_seed(args.seed)
-    
+
     _ = term.Term()
 
     dim_x, dim_y = map(int, args.dim.split(','))

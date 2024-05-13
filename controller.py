@@ -75,21 +75,17 @@ class Draw:
 
         Finally, the function prints a line that shows the current iteration number.
         """
-        output = ['╔══' + '══╦══'.join(['═'] * self.xAxis) + '══╗']
-
-        for i, row in enumerate(self.grid):
-            if i > 0:
-                output.append('╠══' + '══╬══'.join(['═'] * self.xAxis) + '══╣')
-            output.append('║' + '║'.join([f'{Draw.get_icon(self.agents, factor)}' for factor in row]) + '║')
-
-        output.append('╚══' + '══╩══'.join(['═'] * self.xAxis) + '══╝')
-        # Join all the strings in the list into a single string with a newline character between each string
-        output_str = '\n'.join(output)
-
         if cls:
             Term().get_term().clear()
 
-        Term().print(output_str)
+        Term().print('╔══' + '══╦══'.join(['═'] * self.xAxis) + '══╗' + '\n')
+
+        for i, row in enumerate(self.grid):
+            if i > 0:
+                Term().print('╠══' + '══╬══'.join(['═'] * self.xAxis) + '══╣' + '\n')
+            Term().print('║' + '║'.join([f'{Draw.get_icon(self.agents, factor)}' for factor in row]) + '║' + '\n')
+
+        Term().print('╚══' + '══╩══'.join(['═'] * self.xAxis) + '══╝')
 
         if legends:
             Term().print(
@@ -103,8 +99,8 @@ class Draw:
         if info:
             self.print_info()
 
-
-        Term().print(f'\n---------- Iteration: {str(self.iteration).rjust(3)} - Detected Holes Filled (Score): {str(self.score).rjust(2)} - Seed: {random_seed.RandomSeed().get_seed()} ----------')
+        Term().print(
+            f'\n---------- Iteration: {str(self.iteration).rjust(3)} - Detected Holes Filled (Score): {str(self.score).rjust(2)} - Seed: {random_seed.RandomSeed().get_seed()} ----------')
 
     def print_info(self) -> None:
         """
@@ -121,10 +117,11 @@ class Draw:
         column_widths = [UUID_LEN] + [len(title) for title, _ in columns[1:]]
 
         # Print the top border
-        
+
         Term().print('┌' + '┬'.join('─' * width for width in column_widths) + '┐' + '\n')
         # Print the column titles
-        Term().print('│' + '│'.join(f"{title.ljust(width)}" for (title, _), width in zip(columns, column_widths)) + '│' + '\n')
+        Term().print(
+            '│' + '│'.join(f"{title.ljust(width)}" for (title, _), width in zip(columns, column_widths)) + '│' + '\n')
         # Print the separator line
         Term().print('├' + '┼'.join('─' * width for width in column_widths) + '┤' + '\n')
 
@@ -132,7 +129,8 @@ class Draw:
         for i, agent in enumerate(self.agents):
             if i > 0:
                 Term().print('├' + '┼'.join('─' * width for width in column_widths) + '┤' + '\n')
-            Term().print('│' + '│'.join(f"{value_func(agent).ljust(width)}" for (_, value_func), width in zip(columns, column_widths)) + '│'+ '\n')
+            Term().print('│' + '│'.join(f"{value_func(agent).ljust(width)}" for (_, value_func), width in
+                                        zip(columns, column_widths)) + '│' + '\n')
 
         # Print the bottom border
         Term().print('└' + '┴'.join('─' * width for width in column_widths) + '┘' + '\n')
@@ -159,7 +157,7 @@ class Draw:
             # FIXME: refactor AGENT handling and other factors in a more general way.
             agent_id = factors[-1][len(AGENT) + 1:]
             agent = Controller.find_agent(agents, agent_id)
-            
+
             return ARROWS[agent.direction] + ICONS[AGENT] + agent_id[0:2]
 
         if factor == HOLE or factor == ORB or factor == FILLED_HOLE:

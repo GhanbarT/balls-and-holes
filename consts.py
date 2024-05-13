@@ -31,9 +31,9 @@ LEFT = 'left'
 ICONS = {
     EMPTY: ' ' * 5,
     AGENT: '🤖',
-    HOLE: ' 🕳️  ',
-    ORB: ' ⚾ ',
-    FILLED_HOLE: ' ⛳ ',
+    HOLE: ' 🕳️ ',
+    ORB: ' 🥎 ',
+    FILLED_HOLE: ' 🚩 ',
     OBSTACLE: '█' * 5
 }
 
