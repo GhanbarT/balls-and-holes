@@ -1,6 +1,5 @@
 import cmath
 import random_seed
-import random
 
 from typing import Tuple, Optional, Set, List, Union, TYPE_CHECKING
 import uuid
@@ -10,6 +9,8 @@ from utils import get_new_position
 
 if TYPE_CHECKING:
     from playground import Playground
+
+random = random_seed.RandomSeed().get_random_module()
 
 
 class Agent:
@@ -90,11 +91,12 @@ class Agent:
         self.is_new_road = False
 
         new_position = get_new_position(self.direction, self.position)
-        if environment.agent_enter_cell(new_position, self):
-            self.position = new_position
-            self.gone_cells.add(new_position)
-            self.inform_friends_v2(GONE, 1, [new_position])
-            return True
+        if not environment.agent_enter_cell(new_position, self):
+            return False
+
+        self.position = new_position
+        self.gone_cells.add(new_position)
+        self.inform_friends_v2(GONE, 1, [new_position])
 
         return False
 
@@ -118,6 +120,34 @@ class Agent:
             self.inform_friends_v2(ORB, -1, [self.position])
             return True
         return False
+
+    def steal_ball_from_hole(self, environment: 'Playground') -> bool:
+        """
+        Attempts to steal a ball from a hole at the agent's current position.
+        This method checks if the agent's current position is a filled hole. If it is, it checks if the hole was filled by the agent itself or one of its friends. If the hole was filled by another agent, it attempts to steal the ball from the hole.
+        If the ball is successfully stolen, the method updates the agent's knowledge about the state of the hole (it is now unfilled) and informs its friends about the change.
+
+        Args:
+            environment: The Playground object that the agent is in.
+
+        Returns:
+            A boolean value indicating whether the operation was successful. Returns True if a ball was successfully stolen, and False otherwise (for example, if the agent's current position is not a filled hole, or the hole was filled by the agent itself or one of its friends).
+        """
+        if self.position not in self.filled_hole_positions or self.position not in environment.holes.keys():
+            return False
+
+        filler_agent_id = environment.holes[self.position]
+        # check if the hole is filled by the agent's team friends then don't steal the ball
+        if filler_agent_id == self.agent_id or filler_agent_id in [friend.agent_id for friend in self.friends]:
+            return False
+        if not environment.throw_orb_from_hole(self.position):
+            return False
+
+        self.filled_hole_positions.remove(self.position)
+        self.hole_positions.append(self.position)
+        self.inform_friends_v2(HOLE, 1, [self.position])
+        self.inform_friends_v2(FILLED_HOLE, -1, [self.position])
+        return True
 
     def put_ball_in_hole(self, environment: 'Playground') -> bool:
         """
@@ -437,19 +467,23 @@ class Agent:
         self.update_target(environment)
         if self.is_new_road:
             self.take_step_forward(environment)
+            self.steal_ball_from_hole(environment)
             return self
 
         self.update_direction_towards_target()
-        if self.is_agent_in_front():
-            opposite_agent = self.get_opposite_agent()
 
-            if self.log_file:
-                self.log_collision(opposite_agent)
-
-            if not self.handle_opposite_agent(opposite_agent, environment):
-                return self
+        # FIXME: handle the opposite agent for all type of agents
+        # if self.is_agent_in_front():
+        #     opposite_agent = self.get_opposite_agent()
+        #
+        #     if self.log_file:
+        #         self.log_collision(opposite_agent)
+        #
+        #     if not self.handle_opposite_agent(opposite_agent, environment):
+        #         return self
 
         self.take_step_forward(environment)
+        self.steal_ball_from_hole(environment)
         return self
 
     def update_direction_towards_target(self) -> None:
@@ -490,7 +524,7 @@ class Agent:
         Returns:
             The opposite agent in the front of the agent.
         """
-        # note: now we just see in friends list; IDK what we must do if opposite agent is not a friend :)
+        # FIXME: now we just see in friends list; IDK what we must do if opposite agent is not a friend :)
         vis_x, vis_y = self.get_front_cell_indices()
         return [friend for friend in self.friends if friend.get_label() in self.visibility[vis_y][vis_x]][0]
 

@@ -26,3 +26,7 @@ class RandomSeed:
 
     def get_seed(self):
         return self._seed
+
+    @staticmethod
+    def get_random_module():
+        return random

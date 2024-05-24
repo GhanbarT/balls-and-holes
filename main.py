@@ -60,7 +60,7 @@ if __name__ == '__main__':
     dim_x, dim_y = map(int, args.dim.split(','))
     playground = Playground(dimensions=(dim_x, dim_y), num_orbs=args.ball, num_holes=args.hole)
     controller = Controller(playground=playground, log_file=args.log)
-    controller.create_agents(args.agents, 2)
+    controller.create_agents(args.agents, 1)
     controller.start()
 
     v2(show_legends=args.legends, show_info=args.info)

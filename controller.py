@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 class DrawableAgent:
     def __init__(self,
                  agent_id: str = '',
+                 team: int = 1,
                  position: Tuple[int, int] = None,
                  target_position: Tuple[int, int] = None,
                  direction: str = UP,
@@ -26,6 +27,7 @@ class DrawableAgent:
                  agent: 'Agent' = None):
         if agent is not None:
             self.agent_id = deepcopy(agent.agent_id)
+            self.team = deepcopy(agent.type)
             self.position = deepcopy(agent.position)
             self.target_position = deepcopy(agent.target_position)
             self.direction = deepcopy(agent.direction)
@@ -34,6 +36,7 @@ class DrawableAgent:
             self.score = int(agent.get_my_score())
         else:
             self.agent_id = deepcopy(agent_id)
+            self.team = team
             self.position = deepcopy(position)
             self.target_position = deepcopy(target_position)
             self.direction = deepcopy(direction)
@@ -55,6 +58,7 @@ class Draw:
         self.agents = agents
         self.iteration = iteration
         self.score = score
+        # TODO: add playground object to Draw class
 
     def plot(self, cls=True, legends: bool = False, info: bool = False) -> None:
         """
@@ -110,13 +114,15 @@ class Draw:
         """
         Prints information about all agents in a tabular format.
         """
+        # TODO: change the way get score of agents
         columns = [
             ("Agent ID", lambda x: x.agent_id),
+            ("Team", lambda x: str(x.team)),
             ("Current Position", lambda x: str(x.position)),
             ("Target Position", lambda x: str(x.target_position)),
             ("Battery", lambda x: str(x.battery)),
             ("Ball", lambda x: "✔" if x.has_ball else ""),
-            ("Score", lambda x: str(x.get_score()))
+            # ("Score", lambda x: str(x.get_score()))
         ]
         column_widths = [UUID_LEN] + [len(title) for title, _ in columns[1:]]
 
@@ -166,8 +172,11 @@ class Draw:
 
             return text_color + ARROWS[agent.direction] + ICONS[AGENT] + agent_id[0:2] + bcolors.ENDC
 
-        if factor == HOLE or factor == ORB or factor == FILLED_HOLE:
+        if factor == HOLE or factor == ORB:
             return ICONS[factor] + ' ' if random.choice([False, random_space]) else ' ' + ICONS[factor]
+
+        if  factor == FILLED_HOLE:
+            return ICONS[factor] + '  '
 
 
 class Controller:
@@ -214,26 +223,31 @@ class Controller:
 
         return None
 
-    def create_agents(self, agents_str: Optional[str], min_agent: int) -> 'Controller':
+    def create_agents(self, agents_str: Optional[str], min_agent: int,
+                      team_ids: Optional[List[int]] = None) -> 'Controller':
         """
         Creates agents based on the provided string.
 
         Args:
             agents_str: A string containing agent information in the format "x,y,type;x,y,type;...".
-                        If not provided, two agents of type 1 will be created at random positions.
-            min_agent: An integer representing the minimum number of agents to create.
+                        If not provided, min_agent agents of each team type will be created at random positions.
+            min_agent: An integer representing the minimum number of agents to create for each team.
+            team_ids: A list of integers representing the team IDs.
 
         Raises:
             ValueError: If the number of agents created is less than the minimum number specified.
 
         Example:
-            create_agents("0,0,1;1,1,2", 2)
+            create_agents("0,0,1;1,1,2", 2, [1, 2])
             This will create two agents:
             - Agent 1 of type 1 at position (0, 0)
             - Agent 2 of type 2 at position (1, 1)
 
         Returns: self
         """
+        if not team_ids:
+            team_ids = [1, 2]
+
         if agents_str:
             agents = agents_str.split(';')
             for agent in agents:
@@ -247,13 +261,14 @@ class Controller:
                 if not agent:
                     raise ValueError(f"Agent at position ({x}, {y}) was not created")
 
-        agent_counts = len(self.get_agents_by_type(1))
-        if agent_counts < min_agent:
-            # Create at least two agents of type 1 if no agents are specified
-            for i in range(min_agent - agent_counts):
-                agent = self.create_agent(agent_type=1)
-                if not agent:
-                    raise ValueError(f"Agent {agent_counts + i + 1} was not created")
+        for team_id in team_ids:
+            agent_counts = len(self.get_agents_by_type(team_id))
+            if agent_counts < min_agent:
+                # Create at least min_agent agents of each team type if no agents are specified
+                for i in range(min_agent - agent_counts):
+                    agent = self.create_agent(agent_type=team_id)
+                    if not agent:
+                        raise ValueError(f"Agent {agent_counts + i + 1} from team {team_id} was not created")
 
         return self
 

@@ -46,7 +46,7 @@ ICONS = {
     AGENT: '🤖',
     HOLE: ' 🕳️ ',
     ORB: ' ⚾ ',
-    FILLED_HOLE: ' ⛳ ',
+    FILLED_HOLE: ' ⛳',
     OBSTACLE: '█' * 5
 }
 

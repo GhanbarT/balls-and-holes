@@ -1,5 +1,4 @@
 import random_seed
-import random
 from typing import List, Tuple, Set, TYPE_CHECKING
 
 from consts import EMPTY, HOLE, ORB, FILLED_HOLE, UP, RIGHT, DOWN, LEFT, AGENT
@@ -7,6 +6,8 @@ from utils import get_new_position
 
 if TYPE_CHECKING:
     from agent import Agent
+
+random = random_seed.RandomSeed().get_random_module()
 
 
 class Playground:
@@ -24,6 +25,7 @@ class Playground:
         self.num_holes = num_holes
         self.num_orbs = num_orbs
         self.orb_positions = set()
+        self.holes = {}
 
         self.field_of_view = field_of_view
 
@@ -73,6 +75,7 @@ class Playground:
                 break
             x, y = available_positions.pop(0)
             self.grid[y][x] = HOLE
+            self.holes[(x, y)] = ''
 
         # Place orbs
         for i in range(self.num_orbs):
@@ -246,9 +249,39 @@ class Playground:
 
         x, y = position
         self.grid[y][x] = current_cell_state.replace(HOLE, FILLED_HOLE)
+        self.holes[(x, y)] = agent.agent_id
 
         # switch position of other orbs
         self.switch_orb_positions()
+        return True
+
+    def throw_orb_from_hole(self, position: Tuple[int, int]) -> bool:
+        """
+        Steals an orb from a hole at a given position in the playground and put the orb in a random empty position.
+
+        Args:
+            position: A tuple containing two integers representing row and column indices.
+
+        Returns:
+            A boolean value indicating whether the operation was successful. Returns True if an orb was successfully stolen,
+            and False if the operation failed (for example, if the desired position is not valid, the agent does not have an orb, or there is no hole at the position).
+        """
+        if not self.is_valid_position(position):
+            return False
+        current_cell_state = self.get_cell_state(position)
+        if FILLED_HOLE not in current_cell_state:
+            return False
+
+        # change filled hole to hole
+        x, y = position
+        self.grid[y][x] = current_cell_state.replace(FILLED_HOLE, HOLE)
+        self.holes[(x, y)] = ''
+        # put orb in a random position
+        orb_position = self.get_random_empty_position()
+        x, y = orb_position
+        self.grid[y][x] = ORB
+        self.orb_positions.add(orb_position)
+
         return True
 
     def is_valid_position(self, position: Tuple[int, int]) -> bool:
