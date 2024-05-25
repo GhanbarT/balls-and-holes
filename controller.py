@@ -27,7 +27,7 @@ class DrawableAgent:
                  agent: 'Agent' = None):
         if agent is not None:
             self.agent_id = deepcopy(agent.agent_id)
-            self.team = deepcopy(agent.type)
+            self.type = deepcopy(agent.type)
             self.position = deepcopy(agent.position)
             self.target_position = deepcopy(agent.target_position)
             self.direction = deepcopy(agent.direction)
@@ -36,7 +36,7 @@ class DrawableAgent:
             self.score = int(agent.get_my_score())
         else:
             self.agent_id = deepcopy(agent_id)
-            self.team = team
+            self.type = team
             self.position = deepcopy(position)
             self.target_position = deepcopy(target_position)
             self.direction = deepcopy(direction)
@@ -52,13 +52,12 @@ class DrawableAgent:
 
 
 class Draw:
-    def __init__(self, grid: list[list[str]], agents: List[DrawableAgent], iteration: int, score: int = 0):
-        self.grid = deepcopy(grid)
-        self.xAxis = len(grid[0])
+    def __init__(self, playground: 'Playground', agents: List[DrawableAgent], iteration: int):
+        self.playground = playground
+        self.grid = deepcopy(playground.grid)
+        self.xAxis = len(self.grid[0])
         self.agents = agents
         self.iteration = iteration
-        self.score = score
-        # TODO: add playground object to Draw class
 
     def plot(self, cls=True, legends: bool = False, info: bool = False) -> None:
         """
@@ -85,7 +84,8 @@ class Draw:
         for i, row in enumerate(self.grid):
             if i > 0:
                 output.append('╠══' + '══╬══'.join(['═'] * self.xAxis) + '══╣')
-            output.append('║' + '║'.join([f'{Draw.get_icon(self.agents, factor)}' for factor in row]) + '║')
+            output.append(
+                '║' + '║'.join([f'{self.get_icon(factor, (j, i))}' for j, factor in enumerate(row)]) + '║')
 
         output.append('╚══' + '══╩══'.join(['═'] * self.xAxis) + '══╝')
         # Join all the strings in the list into a single string with a newline character between each string
@@ -108,7 +108,7 @@ class Draw:
             self.print_info()
 
         print(
-            f'---------- {bcolors.LIGHT_YELLOW_HIGHLIGHT}{bcolors.BLACK} Iteration: {str(self.iteration).rjust(3)} - Detected Holes Filled (Score): {str(self.score).rjust(2)} - Seed: {random_seed.RandomSeed().get_seed()} {bcolors.ENDC} ----------')
+            f'---------- {bcolors.LIGHT_YELLOW_HIGHLIGHT}{bcolors.BLACK} Iteration: {str(self.iteration).rjust(3)} - Seed: {random_seed.RandomSeed().get_seed()} {bcolors.ENDC} ----------')
 
     def print_info(self) -> None:
         """
@@ -117,7 +117,7 @@ class Draw:
         # TODO: change the way get score of agents
         columns = [
             ("Agent ID", lambda x: x.agent_id),
-            ("Team", lambda x: str(x.team)),
+            ("Team", lambda x: str(x.type)),
             ("Current Position", lambda x: str(x.position)),
             ("Target Position", lambda x: str(x.target_position)),
             ("Battery", lambda x: str(x.battery)),
@@ -143,14 +143,14 @@ class Draw:
         # Print the bottom border
         print('└' + '┴'.join('─' * width for width in column_widths) + '┘')
 
-    @staticmethod
-    def get_icon(agents: List['Agent'] | List['DrawableAgent'], factor: str, random_space=False) -> str:
+    def get_icon(self, factor: str, position: tuple[int, int],
+                 random_space=False) -> str:
         """
         Returns the icon corresponding to a given cell state.
 
         Args:
-            agents: A list of Agent objects.
             factor: A string representing the state of a cell.
+            position: cell position
             random_space: A boolean value indicating whether to add a random space before the icon.
 
         Returns:
@@ -164,7 +164,7 @@ class Draw:
 
             # FIXME: refactor AGENT handling and other factors in a more general way.
             agent_id = factors[-1][len(AGENT) + 1:]
-            agent = Controller.find_agent(agents, agent_id)
+            agent = Controller.find_agent(self.agents, agent_id)
             text_color = HAVING_ORB if agent.has_ball else ''
 
             if len(factors) > 1:
@@ -175,8 +175,10 @@ class Draw:
         if factor == HOLE or factor == ORB:
             return ICONS[factor] + ' ' if random.choice([False, random_space]) else ' ' + ICONS[factor]
 
-        if  factor == FILLED_HOLE:
-            return ICONS[factor] + '  '
+        if factor == FILLED_HOLE:
+            filler_agent_id = self.playground.holes[position]
+            agent = Controller.find_agent(self.agents, filler_agent_id)
+            return ICONS[factor] + str(agent.type).ljust(2)[0:2]
 
 
 class Controller:
@@ -340,10 +342,9 @@ class Controller:
         self.introduce_friends()
 
         self.draws.append(
-            Draw(grid=self.playground.grid,
+            Draw(playground=self.playground,
                  agents=[DrawableAgent(agent=agent) for agent in self.agents],
                  iteration=len(self.draws),
-                 score=self.agents[0].get_all_agents_score()
                  ))
         return self
 
@@ -390,10 +391,9 @@ class Controller:
 
         # Create a new draw object
         self.draws.append(
-            Draw(grid=self.playground.grid,
+            Draw(playground=self.playground,
                  agents=[DrawableAgent(agent=agent) for agent in self.agents],
                  iteration=len(self.draws),
-                 score=self.agents[0].get_all_agents_score()
                  ))
         return self
 
