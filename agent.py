@@ -23,7 +23,7 @@ class Agent:
                  field_of_view: int = 3,
                  visibility: list[list[str]] = None,
                  random_seed: Optional[int] = None,
-                 battery: int = 30,
+                 battery: int = 40,
                  log_file: str = None):
         self.agent_id = agent_id if agent_id is not None \
             else str(uuid.uuid4())  # Assign a random UUID if no ID is provided
@@ -87,9 +87,7 @@ class Agent:
             A boolean value indicating whether the operation was successful. Returns True if the agent moved successfully,
             and False if the operation failed (for example, if the desired position is not valid).
         """
-        self.battery -= 1
         self.is_new_road = False
-
         new_position = get_new_position(self.direction, self.position)
         if not environment.agent_enter_cell(new_position, self):
             return False
@@ -97,6 +95,7 @@ class Agent:
         self.position = new_position
         self.gone_cells.add(new_position)
         self.inform_friends_v2(GONE, 1, [new_position])
+        self.battery -= 1
 
         return False
 
@@ -434,7 +433,7 @@ class Agent:
 
         return False
 
-    def action(self, environment: 'Playground') -> 'Agent':
+    def action(self, environment: 'Playground', opposite_agent: 'Agent') -> 'Agent':
         """
         Defines the agent's actions in its environment.
 
@@ -472,15 +471,9 @@ class Agent:
 
         self.update_direction_towards_target()
 
-        # FIXME: handle the opposite agent for all type of agents
-        # if self.is_agent_in_front():
-        #     opposite_agent = self.get_opposite_agent()
-        #
-        #     if self.log_file:
-        #         self.log_collision(opposite_agent)
-        #
-        #     if not self.handle_opposite_agent(opposite_agent, environment):
-        #         return self
+        if opposite_agent:
+            if not self.handle_opposite_agent(opposite_agent, environment):
+                return self
 
         self.take_step_forward(environment)
         self.steal_ball_from_hole(environment)
@@ -516,17 +509,6 @@ class Agent:
         """
         vis_x, vis_y = self.get_front_cell_indices()
         return AGENT in self.visibility[vis_y][vis_x]
-
-    def get_opposite_agent(self) -> 'Agent':
-        """
-        Returns the opposite agent in the front of the agent.
-
-        Returns:
-            The opposite agent in the front of the agent.
-        """
-        # FIXME: now we just see in friends list; IDK what we must do if opposite agent is not a friend :)
-        vis_x, vis_y = self.get_front_cell_indices()
-        return [friend for friend in self.friends if friend.get_label() in self.visibility[vis_y][vis_x]][0]
 
     def get_front_cell_indices(self) -> Tuple[int, int]:
         """

@@ -26,8 +26,8 @@ class DrawableAgent:
                  score: int = 0,
                  agent: 'Agent' = None):
         if agent is not None:
-            self.agent_id = deepcopy(agent.agent_id)
-            self.type = deepcopy(agent.type)
+            self.agent_id = agent.agent_id
+            self.type = agent.type
             self.position = deepcopy(agent.position)
             self.target_position = deepcopy(agent.target_position)
             self.direction = deepcopy(agent.direction)
@@ -53,7 +53,7 @@ class DrawableAgent:
 
 class Draw:
     def __init__(self, playground: 'Playground', agents: List[DrawableAgent], iteration: int):
-        self.playground = playground
+        self.playground = deepcopy(playground)
         self.grid = deepcopy(playground.grid)
         self.xAxis = len(self.grid[0])
         self.agents = agents
@@ -178,6 +178,9 @@ class Draw:
         if factor == FILLED_HOLE:
             filler_agent_id = self.playground.holes[position]
             agent = Controller.find_agent(self.agents, filler_agent_id)
+            # this must not happened, but just to be sure
+            if agent is None:
+                return ICONS[factor] + ' ' * 2
             return ICONS[factor] + str(agent.type).ljust(2)[0:2]
 
 
@@ -194,7 +197,7 @@ class Controller:
                      agent_type: int = 1,
                      position: Optional[Tuple[int, int]] = None,
                      field_of_view: Optional[int] = 3,
-                     battery=30) -> Optional['Agent']:
+                     battery=40) -> Optional['Agent']:
         """
         Creates a new agent and adds it to the playground.
 
@@ -387,7 +390,17 @@ class Controller:
             # In the current state, each agent is perceived of the information after the moves of the previous agents.
             surrounding_cells = self.playground.get_surrounding_cells(position=agent.position,
                                                                       field_of_view=agent.field_of_view)
-            agent.see(surrounding_cells).action(self.playground)
+
+            # find opposite agent of the current agent
+            opposite_agent = None
+            if agent.is_agent_in_front():
+                vis_x, vis_y = agent.get_front_cell_indices()
+                opposite_agent = [other_agent for other_agent in self.agents if
+                                  other_agent.get_label() in agent.visibility[vis_y][vis_x]][0]
+                if agent.log_file:
+                    agent.log_collision(opposite_agent)
+
+            agent.see(surrounding_cells).action(self.playground, opposite_agent)
 
         # Create a new draw object
         self.draws.append(

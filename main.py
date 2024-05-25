@@ -14,12 +14,8 @@ def print_guid(last_index=False) -> None:
     print("\n" + prev_str + next_str + exit_str)
 
     if last_index:
-        success_message = GREEN_HIGHLIGHT + "Agent completed the task successfully" + ENDC
-        failure_message = RED_HIGHLIGHT + "Agent failed the task successfully" + ENDC
-        if controller.agents_reached_max_score():
-            print(success_message)
-        else:
-            print(failure_message)
+        success_message = GREEN_HIGHLIGHT + "Agents completed the task successfully" + ENDC
+        print(success_message)
 
 
 def v2(show_legends: bool, show_info: bool):
