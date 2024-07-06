@@ -1,5 +1,8 @@
 import argparse
-import random_seed
+import os
+
+from random_seed import RandomSeed
+from chatbot import Chatbot
 
 from controller import Controller
 from playground import Playground
@@ -20,9 +23,11 @@ def print_guid(last_index=False) -> None:
 
 def v1(show_legends, show_info):
     controller.plot(legends=show_legends, info=show_info)
+    print("\nPress [⏎]/[Enter] for next step")
     input()
     while not controller.game_over():
         controller.perceive_agents().next_round().plot(legends=show_legends, info=show_info)
+        print("\nPress [⏎]/[Enter] for next step")
         input()
 
     success_message = GREEN_HIGHLIGHT + "Agent completed the task successfully" + ENDC
@@ -52,27 +57,56 @@ def v2(show_legends: bool, show_info: bool):
             print_guid(controller.is_last_draw_index())
 
 
-if __name__ == '__main__':
+def parse_arguments():
     parser = argparse.ArgumentParser(description='game parameters')
     parser.add_argument('-dim', type=str, default='4,3', help='Dimensions of the playground (default: 5,5)')
     parser.add_argument('-ball', type=int, default=3, help='Number of balls in the playground (default: 3)')
     parser.add_argument('-hole', type=int, default=3, help='Number of holes in the playground (default: 3)')
     parser.add_argument('-legends', action='store_true', help='Show legends (default: False)')
     parser.add_argument('-info', action='store_true', help='Show Agents\' info (default: False)')
-    parser.add_argument('-agents', type=str,
+    parser.add_argument('-agents',
+                        type=str,
                         help='Agents\' positions and types (default: None).format:<x,y,type;x,y,type;...>.example: 0,0,1;6,4,2')
     parser.add_argument('-log', type=str, help='Log file name (default: None)')
-    parser.add_argument('-seed', type=int, default=None,
+    parser.add_argument('-chatbot', default=True, action='store_true', help='use LLM chatbot (default: True)')
+    parser.add_argument('-phased',
+                        default=False,
+                        action='store_true',
+                        help='Use phased version of the game. In this version, it is not possible to return to the previous stage (default: False)')
+    parser.add_argument('-seed',
+                        type=int,
+                        default=None,
                         help='Seed for the random number generator if you want retry a run (default: None)')
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    random_seed_instance = random_seed.RandomSeed()
-    random_seed_instance.set_seed(args.seed)
+
+def initialize_playground_and_controller(args):
+    RandomSeed().set_seed(args.seed)
 
     dim_x, dim_y = map(int, args.dim.split(','))
     playground = Playground(dimensions=(dim_x, dim_y), num_orbs=args.ball, num_holes=args.hole)
     controller = Controller(playground=playground, log_file=args.log)
-    controller.create_agents(args.agents, 1)
+    controller.create_agents(args.agents, 1, chatbot=args.chatbot)
     controller.start()
+    return controller
 
-    v2(show_legends=args.legends, show_info=args.info)
+
+def configure_chatbot(args):
+    chatbot_username = os.getenv('CHATBOT_USERNAME')
+    chatbot_password = os.getenv('CHATBOT_PASSWORD')
+    if args.chatbot and not (chatbot_username and chatbot_password):
+        raise ValueError("Error: Chatbot username or password environment variables are not set.")
+
+    Chatbot().configure(username=chatbot_username, password=chatbot_password)
+    print(Chatbot().query("what is your name?", web_search=False))
+
+
+if __name__ == '__main__':
+    args = parse_arguments()
+    controller = initialize_playground_and_controller(args)
+    configure_chatbot(args)
+
+    if args.phased:
+        v1(show_legends=args.legends, show_info=args.info)
+    else:
+        v2(show_legends=args.legends, show_info=args.info)

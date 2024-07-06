@@ -162,7 +162,6 @@ class Draw:
         if AGENT in factor:
             factors = factor.split(',')
 
-            # FIXME: refactor AGENT handling and other factors in a more general way.
             agent_id = factors[-1][len(AGENT) + 1:]
             agent = Controller.find_agent(self.agents, agent_id)
             text_color = HAVING_ORB if agent.has_ball else ''
@@ -193,15 +192,17 @@ class Controller:
         self.log_file = log_file
 
     def create_agent(self,
+                     chatbot: bool,
                      agent_id: Optional[str] = None,
                      agent_type: int = 1,
                      position: Optional[Tuple[int, int]] = None,
                      field_of_view: Optional[int] = 3,
-                     battery=30) -> Optional['Agent']:
+                     battery=30,) -> Optional['Agent']:
         """
         Creates a new agent and adds it to the playground.
 
         Args:
+            chatbot: A boolean value indicating whether to use the chatbot.
             agent_id: A string representing the agent's ID. If not provided, a random UUID will be assigned.
             agent_type: An integer representing the type of the agent. Default is 1.
             position: A tuple containing two integers representing row and column indices.
@@ -221,7 +222,8 @@ class Controller:
                       position=position,
                       field_of_view=field_of_view,
                       battery=battery,
-                      log_file=self.log_file)
+                      log_file=self.log_file,
+                      chatbot=chatbot)
         if self.playground.add_agent(agent):
             self.agents.append(agent)  # Add the new agent to the list of agents
             return agent
@@ -231,6 +233,7 @@ class Controller:
     def create_agents(self,
                       agents_str: Optional[str],
                       min_agent: int,
+                      chatbot: bool = True,
                       team_ids: Optional[List[int]] = None) -> 'Controller':
         """
         Creates agents based on the provided string.
@@ -239,6 +242,7 @@ class Controller:
             agents_str: A string containing agent information in the format "x,y,type;x,y,type;...".
                         If not provided, min_agent agents of each team type will be created at random positions.
             min_agent: An integer representing the minimum number of agents to create for each team.
+            chatbot: A boolean value indicating whether to use the chatbot. Default is True.
             team_ids: A list of integers representing the team IDs.
 
         Raises:
@@ -264,7 +268,7 @@ class Controller:
                 else:
                     x, y = map(int, agent_info)
                     agent_type = 1  # default agent type
-                agent = self.create_agent(agent_type=agent_type, position=(x, y))
+                agent = self.create_agent(agent_type=agent_type, position=(x, y), chatbot=chatbot)
                 if not agent:
                     raise ValueError(f"Agent at position ({x}, {y}) was not created")
 
@@ -273,7 +277,7 @@ class Controller:
             if agent_counts < min_agent:
                 # Create at least min_agent agents of each team type if no agents are specified
                 for i in range(min_agent - agent_counts):
-                    agent = self.create_agent(agent_type=team_id)
+                    agent = self.create_agent(agent_type=team_id, chatbot=chatbot)
                     if not agent:
                         raise ValueError(f"Agent {agent_counts + i + 1} from team {team_id} was not created")
 

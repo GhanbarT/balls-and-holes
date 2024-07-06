@@ -168,3 +168,4 @@ activate.ps1
 
 # output file
 *.txt
+/cookies/

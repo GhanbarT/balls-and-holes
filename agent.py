@@ -24,7 +24,8 @@ class Agent:
                  visibility: list[list[str]] = None,
                  random_seed: Optional[int] = None,
                  battery: int = 30,
-                 log_file: str = None):
+                 log_file: str = None,
+                 chatbot: bool = True):
         self.agent_id = agent_id if agent_id is not None \
             else str(uuid.uuid4())  # Assign a random UUID if no ID is provided
         self.type = agent_type
@@ -59,6 +60,7 @@ class Agent:
         self.locked_positions: list[Tuple[int, int]] = list()
 
         self.log_file = log_file
+        self.useLLM = chatbot
         if random_seed:
             random.seed = random_seed
 
@@ -357,14 +359,14 @@ class Agent:
 
         return map_
 
-    def update_target(self, environment: 'Playground', useLLM: bool = False) -> None:
+    def update_target(self, environment: 'Playground') -> None:
         """
         Updates the agent's target position.
 
         The agent sets the target to the nearest hole if the agent has a ball, or the nearest orb if the agent does not have a ball.
         If there are no available targets, it sets a random position in the playground as the target.
         """
-        if useLLM:
+        if not self.useLLM:
             pass
             return
 
@@ -719,4 +721,3 @@ class Agent:
             map_[y][x] += ',' + label
         else:
             map_[y][x] = label
-
