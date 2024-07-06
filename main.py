@@ -18,6 +18,21 @@ def print_guid(last_index=False) -> None:
         print(success_message)
 
 
+def v1(show_legends, show_info):
+    controller.plot(legends=show_legends, info=show_info)
+    input()
+    while not controller.game_over():
+        controller.perceive_agents().next_round().plot(legends=show_legends, info=show_info)
+        input()
+
+    success_message = GREEN_HIGHLIGHT + "Agent completed the task successfully" + ENDC
+    failure_message = RED_HIGHLIGHT + "Agent failed the task successfully" + ENDC
+    if controller.agents_reached_max_score():
+        print(success_message)
+    else:
+        print(failure_message)
+
+
 def v2(show_legends: bool, show_info: bool):
     while not controller.game_over():
         controller.next_round()
@@ -39,15 +54,16 @@ def v2(show_legends: bool, show_info: bool):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='game parameters')
-    parser.add_argument('-dim', type=str, default='7,7', help='Dimensions of the playground (default: 7,7)')
-    parser.add_argument('-ball', type=int, default=5, help='Number of balls in the playground (default: 5)')
-    parser.add_argument('-hole', type=int, default=5, help='Number of holes in the playground (default: 5)')
+    parser.add_argument('-dim', type=str, default='4,3', help='Dimensions of the playground (default: 5,5)')
+    parser.add_argument('-ball', type=int, default=3, help='Number of balls in the playground (default: 3)')
+    parser.add_argument('-hole', type=int, default=3, help='Number of holes in the playground (default: 3)')
     parser.add_argument('-legends', action='store_true', help='Show legends (default: False)')
     parser.add_argument('-info', action='store_true', help='Show Agents\' info (default: False)')
     parser.add_argument('-agents', type=str,
                         help='Agents\' positions and types (default: None).format:<x,y,type;x,y,type;...>.example: 0,0,1;6,4,2')
     parser.add_argument('-log', type=str, help='Log file name (default: None)')
-    parser.add_argument('-seed', type=int, default=None, help='Seed for the random number generator if you want retry a run (default: None)')
+    parser.add_argument('-seed', type=int, default=None,
+                        help='Seed for the random number generator if you want retry a run (default: None)')
     args = parser.parse_args()
 
     random_seed_instance = random_seed.RandomSeed()

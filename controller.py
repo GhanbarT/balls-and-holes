@@ -178,7 +178,7 @@ class Draw:
         if factor == FILLED_HOLE:
             filler_agent_id = self.playground.holes[position]
             agent = Controller.find_agent(self.agents, filler_agent_id)
-            # this must not happened, but just to be sure
+            # this must not happen, but just to be sure
             if agent is None:
                 return ICONS[factor] + ' ' * 2
             return ICONS[factor] + str(agent.type).ljust(2)[0:2]
@@ -197,7 +197,7 @@ class Controller:
                      agent_type: int = 1,
                      position: Optional[Tuple[int, int]] = None,
                      field_of_view: Optional[int] = 3,
-                     battery=40) -> Optional['Agent']:
+                     battery=30) -> Optional['Agent']:
         """
         Creates a new agent and adds it to the playground.
 
@@ -228,7 +228,9 @@ class Controller:
 
         return None
 
-    def create_agents(self, agents_str: Optional[str], min_agent: int,
+    def create_agents(self,
+                      agents_str: Optional[str],
+                      min_agent: int,
                       team_ids: Optional[List[int]] = None) -> 'Controller':
         """
         Creates agents based on the provided string.
@@ -251,7 +253,7 @@ class Controller:
         Returns: self
         """
         if not team_ids:
-            team_ids = [1, 2]
+            team_ids = [1]
 
         if agents_str:
             agents = agents_str.split(';')
@@ -524,5 +526,6 @@ class Controller:
         Returns:
             bool: True if the game is over for the specified agent type, False otherwise.
         """
+        # TODO: change the end game condition
         return self.agents_reached_max_score() or all(
             agent.battery < 0 for agent in self.get_agents_by_type(agent_type))

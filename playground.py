@@ -213,7 +213,6 @@ class Playground:
             x_new, y_new = new_position
             new_cell_label = self.get_cell_state(new_position)
             # if new position is orb or filled hole cell nothing change
-            # FIXME: if there are multiple agents in the playground, we must add some behavior for the agent cell.
             if ORB in new_cell_label or FILLED_HOLE in new_cell_label:
                 continue
 
@@ -332,3 +331,39 @@ class Playground:
             and False otherwise.
         """
         return HOLE in self.get_cell_state(position)
+
+    def get_full_map_for_agent(self, agent: 'Agent'):
+
+        """
+        Returns the full map for the agent, based on the agent's memory rather than the actual state of the playground.
+        This includes the agent's view of orbs, holes, filled holes, and the positions of friends.
+
+        Args:
+            agent: The Agent object for which the map is generated.
+
+        Returns:
+            A list of lists representing the full map for the agent, based on its memory.
+        """
+        map_ = [[EMPTY for _ in range(self.xAxis)] for _ in range(self.yAxis)]
+
+        # Mark orbs as per the agent's memory
+        for orb_pos in agent.orb_positions:
+            map_[orb_pos[1]][orb_pos[0]] = ORB
+
+        # Mark holes as per the agent's memory
+        for hole_pos in agent.hole_positions:
+            map_[hole_pos[1]][hole_pos[0]] = HOLE
+
+        # Mark filled holes as per the agent's memory
+        for filled_hole_pos in agent.filled_hole_positions:
+            map_[filled_hole_pos[1]][filled_hole_pos[0]] = FILLED_HOLE
+
+        # Mark the agent's position
+        map_[agent.position[1]][agent.position[0]] = agent.get_label() if map_[agent.position[1]][agent.position[0]] == EMPTY else agent.get_label() + ',' + map_[agent.position[1]][agent.position[0]]
+
+        # Mark the positions of friends
+        for friend in agent.friends:
+            if (friend.position[0] < self.xAxis) and (friend.position[1] < self.yAxis):
+                map_[friend.position[1]][friend.position[0]] = friend.get_label() if map_[friend.position[1]][friend.position[0]] == EMPTY else friend.get_label() + ',' + map_[friend.position[1]][friend.position[0]]
+
+        return map_

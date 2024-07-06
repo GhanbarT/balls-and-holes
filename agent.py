@@ -23,7 +23,7 @@ class Agent:
                  field_of_view: int = 3,
                  visibility: list[list[str]] = None,
                  random_seed: Optional[int] = None,
-                 battery: int = 40,
+                 battery: int = 30,
                  log_file: str = None):
         self.agent_id = agent_id if agent_id is not None \
             else str(uuid.uuid4())  # Assign a random UUID if no ID is provided
@@ -327,13 +327,52 @@ class Agent:
 
         return self
 
-    def update_target(self, environment: 'Playground') -> None:
+    def get_memory_based_map(self, environment: 'Playground') -> list[list[str]]:
+        """
+        Generates a map based on the agent's memory and current knowledge of the environment.
+
+        Args:
+            environment: The Playground object representing the environment.
+
+        Returns:
+            A list of lists representing the map from the agent's perspective.
+        """
+        map_ = [[EMPTY for _ in range(environment.xAxis)] for _ in range(environment.yAxis)]
+
+        # Mark orbs, holes, and filled holes
+        for orb_pos in self.orb_positions:
+            self.mark_position(map_, orb_pos, ORB)
+        for hole_pos in self.hole_positions:
+            self.mark_position(map_, hole_pos, HOLE)
+        for filled_hole_pos in self.filled_hole_positions:
+            self.mark_position(map_, filled_hole_pos, FILLED_HOLE)
+
+        # Mark the agent's position
+        self.mark_position(map_, self.position, self.get_label(), combine=True)
+
+        # Mark the positions of friends
+        for friend in self.friends:
+            if (friend.position[1] < environment.yAxis) and (friend.position[0] < environment.xAxis):
+                self.mark_position(map_, friend.position, friend.get_label(), combine=True)
+
+        return map_
+
+    def update_target(self, environment: 'Playground', useLLM: bool = False) -> None:
         """
         Updates the agent's target position.
 
         The agent sets the target to the nearest hole if the agent has a ball, or the nearest orb if the agent does not have a ball.
         If there are no available targets, it sets a random position in the playground as the target.
         """
+        if useLLM:
+            pass
+            return
+
+        with open('output.txt', 'a') as f:
+            print(self.get_memory_based_map(environment), file=f)
+            print(f'visited cells: {self.visited_cells}', file=f)
+            print('============================================', file=f)
+
         # if the agent has a ball, the target is the nearest hole; otherwise, it is the nearest orb
         target_list = self.hole_positions if self.has_ball else self.orb_positions
 
@@ -417,6 +456,7 @@ class Agent:
         """
         # remove the orb from the orb_positions list if the cell is empty and there is an orb in the cell,
         # for example, another agent has taken the orb or the orb has been switched position
+        self.steal_ball_from_hole(environment)
         if self.position in self.orb_positions and not environment.is_a_orb_cell(self.position):
             self.orb_positions.remove(self.position)
             self.inform_friends_v2(ORB, -1, [self.position])
@@ -445,6 +485,7 @@ class Agent:
 
         Args:
             environment: The Playground object that the agent is in.
+            opposite_agent: `there is no doc`.
 
         Returns:
             The agent object itself.
@@ -459,14 +500,13 @@ class Agent:
 
         # if battery = 0 -> move not allowed
         if self.battery <= 0:
-            if self.battery == 0:
-                self.battery -= 1
+            # if self.battery == 0:
+            #     self.battery -= 1
             return self
 
         self.update_target(environment)
         if self.is_new_road:
             self.take_step_forward(environment)
-            self.steal_ball_from_hole(environment)
             return self
 
         self.update_direction_towards_target()
@@ -476,7 +516,6 @@ class Agent:
                 return self
 
         self.take_step_forward(environment)
-        self.steal_ball_from_hole(environment)
         return self
 
     def update_direction_towards_target(self) -> None:
@@ -672,3 +711,12 @@ class Agent:
             The Manhattan distance between the two positions.
         """
         return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
+
+    @staticmethod
+    def mark_position(map_, position, label, combine=False):
+        x, y = position
+        if combine and map_[y][x] != EMPTY:
+            map_[y][x] += ',' + label
+        else:
+            map_[y][x] = label
+
