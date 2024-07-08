@@ -59,7 +59,7 @@ def v2(show_legends: bool, show_info: bool):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='game parameters')
-    parser.add_argument('-dim', type=str, default='4,3', help='Dimensions of the playground (default: 5,5)')
+    parser.add_argument('-dim', type=str, default='5,5', help='Dimensions of the playground (default: 5,5)')
     parser.add_argument('-ball', type=int, default=3, help='Number of balls in the playground (default: 3)')
     parser.add_argument('-hole', type=int, default=3, help='Number of holes in the playground (default: 3)')
     parser.add_argument('-legends', action='store_true', help='Show legends (default: False)')
@@ -68,11 +68,15 @@ def parse_arguments():
                         type=str,
                         help='Agents\' positions and types (default: None).format:<x,y,type;x,y,type;...>.example: 0,0,1;6,4,2')
     parser.add_argument('-log', type=str, help='Log file name (default: None)')
-    parser.add_argument('-chatbot', default=True, action='store_true', help='use LLM chatbot (default: True)')
+    parser.add_argument('-no-chatbot', dest='chatbot', default=True, action='store_false', help='dont use LLM chatbot as core')
     parser.add_argument('-phased',
                         default=False,
                         action='store_true',
                         help='Use phased version of the game. In this version, it is not possible to return to the previous stage (default: False)')
+    parser.add_argument('-username', type=str, default=None, help='Username for the chatbot (default: None)')
+    parser.add_argument('-password', type=str, default=None, help='Password for the chatbot (default: None)')
+    parser.add_argument('-environment-variable', dest='envar', default=False, action='store_true',
+                        help='Use environment variable for login(default: False)')
     parser.add_argument('-seed',
                         type=int,
                         default=None,
@@ -92,18 +96,18 @@ def initialize_playground_and_controller(args):
 
 
 def configure_chatbot(args):
-    chatbot_username = os.getenv('CHATBOT_USERNAME')
-    chatbot_password = os.getenv('CHATBOT_PASSWORD')
+    chatbot_username = os.getenv('CHATBOT_USERNAME') if args.envar else args.username
+    chatbot_password = os.getenv('CHATBOT_PASSWORD') if args.envar else args.password
     if args.chatbot and not (chatbot_username and chatbot_password):
         raise ValueError("Error: Chatbot username or password environment variables are not set.")
 
     Chatbot().configure(username=chatbot_username, password=chatbot_password)
-    print(Chatbot().query("what is your name?", web_search=False))
 
 
 if __name__ == '__main__':
     args = parse_arguments()
     controller = initialize_playground_and_controller(args)
+
     configure_chatbot(args)
 
     if args.phased:

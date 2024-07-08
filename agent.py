@@ -4,6 +4,7 @@ import random_seed
 from typing import Tuple, Optional, Set, List, Union, TYPE_CHECKING
 import uuid
 
+from chatbot import Chatbot
 from consts import UP, RIGHT, DOWN, LEFT, AGENT, EMPTY, ORB, HOLE, FILLED_HOLE, LOCK, GONE, VISITED
 from utils import get_new_position
 
@@ -339,7 +340,8 @@ class Agent:
         Returns:
             A list of lists representing the map from the agent's perspective.
         """
-        map_ = [[EMPTY for _ in range(environment.xAxis)] for _ in range(environment.yAxis)]
+        map_ = [[(EMPTY if (j, i) in self.visited_cells else '-') for j in range(environment.xAxis)] for i in
+                range(environment.yAxis)]
 
         # Mark orbs, holes, and filled holes
         for orb_pos in self.orb_positions:
@@ -366,14 +368,74 @@ class Agent:
         The agent sets the target to the nearest hole if the agent has a ball, or the nearest orb if the agent does not have a ball.
         If there are no available targets, it sets a random position in the playground as the target.
         """
-        if not self.useLLM:
-            pass
-            return
 
-        with open('output.txt', 'a') as f:
-            print(self.get_memory_based_map(environment), file=f)
-            print(f'visited cells: {self.visited_cells}', file=f)
-            print('============================================', file=f)
+        prompt = f"""
+        I am an agent in a game where the objective is to find orbs, pick them up, and place them into holes. My field of view is limited to the 8 cells surrounding me. I can only carry one orb at a time.
+
+        Here are the possible states for each cell in the game:
+        1. `empty`: The cell is empty.
+        2. `hole`: The cell contains a hole.
+        3. `orb`: The cell contains an orb.
+        4. `filled_hole`: The cell contains a filled hole.
+        5. `agent-[id]`: The cell contains an agent with the specified ID.
+        6. `-`: There is no information about the cell.
+
+        This is the current state of the game map as I remember it:
+        {self.get_memory_based_map(environment)}
+        Orb positions in my memory: {self.orb_positions}
+        Hole (not filled) positions in my memory: {self.hole_positions}
+
+        I can perform 4 actions: [UP, LEFT, DOWN, RIGHT].
+        The position system in this map is (x, y) with indices starting from 0. For example, if I am at position (3, 2), it means I am in column 4 (x) and row 3 (y).
+        Given that my ID is <{self.agent_id}> and my current position is {self.position}, what is the best action for me to take to find the nearest {"hole" if self.has_ball else "orb"}?
+
+        Please note:
+        1. The map is {environment.yAxis} rows by {environment.xAxis} columns. There is no row -1 or more than {environment.yAxis - 1}, so just row value (Y) from 0 to {environment.yAxis - 1} is allowed.
+        2. The top-left cell of the map is at index (0, 0). For this cell, the UP and LEFT actions are not available. The RIGHT action corresponds to moving to the cell at (0, 1), and the DOWN action corresponds to moving to the cell at (1, 0), and so on for other cells.
+        3. If your previous answer did not affect the map, please provide a different answer.
+
+        Please provide your answer in the following format:
+        Answer: <action>
+        Reason: <reason>
+        """
+
+        error_counter = 0
+        while self.useLLM:
+            error_counter = error_counter + 1
+            with open('output.txt', 'a') as f:
+                print(prompt, file=f)
+
+            try:
+                answer = str(Chatbot().query(prompt, web_search=False))
+            except Exception as e:
+                if error_counter > 3:
+                    raise ValueError(e)
+                continue
+
+            direction = answer.split('\n')[0].replace('Answer: ', '').strip().upper()
+            if direction not in ["UP", "LEFT", "DOWN", "RIGHT"]:
+                print(f"Invalid direction received from chatbot: {direction}")
+                continue
+
+            new_position = self.position
+            current_x, current_y = self.position
+
+            if direction == "UP":
+                new_position = (current_x, current_y - 1)
+            elif direction == "LEFT":
+                new_position = (current_x - 1, current_y)
+            elif direction == "DOWN":
+                new_position = (current_x, current_y + 1)
+            elif direction == "RIGHT":
+                new_position = (current_x + 1, current_y)
+
+            with open('output.txt', 'a') as f:
+                print(f'answer: {answer}, new position: {new_position}', file=f)
+                print('============================================', file=f)
+
+            if environment.is_valid_position(new_position):
+                self.target_position = new_position
+                return
 
         # if the agent has a ball, the target is the nearest hole; otherwise, it is the nearest orb
         target_list = self.hole_positions if self.has_ball else self.orb_positions
@@ -497,13 +559,13 @@ class Agent:
             # updated items in playground so update the visibility
             self.see(environment.get_surrounding_cells(self.position, self.field_of_view))
             self.update_item_positions()
-            self.update_target(environment)
+            # self.update_target(environment)
             return self
 
         # if battery = 0 -> move not allowed
         if self.battery <= 0:
-            # if self.battery == 0:
-            #     self.battery -= 1
+            if self.battery == 0:
+                self.battery -= 1
             return self
 
         self.update_target(environment)

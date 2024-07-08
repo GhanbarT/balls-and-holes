@@ -108,7 +108,7 @@ class Draw:
             self.print_info()
 
         print(
-            f'---------- {bcolors.LIGHT_YELLOW_HIGHLIGHT}{bcolors.BLACK} Iteration: {str(self.iteration).rjust(3)} - Seed: {random_seed.RandomSeed().get_seed()} {bcolors.ENDC} ----------')
+            f'--------------------- {bcolors.LIGHT_YELLOW_HIGHLIGHT}{bcolors.BLACK} Iteration: {str(self.iteration).rjust(3)} - Seed: {random_seed.RandomSeed().get_seed()} {bcolors.ENDC} ---------------------')
 
     def print_info(self) -> None:
         """
@@ -197,7 +197,7 @@ class Controller:
                      agent_type: int = 1,
                      position: Optional[Tuple[int, int]] = None,
                      field_of_view: Optional[int] = 3,
-                     battery=30,) -> Optional['Agent']:
+                     battery=30, ) -> Optional['Agent']:
         """
         Creates a new agent and adds it to the playground.
 
@@ -408,6 +408,9 @@ class Controller:
 
             agent.see(surrounding_cells).action(self.playground, opposite_agent)
 
+        print(
+            f'\r[{('==' * min(20, len(self.draws))).ljust(40, ' ')} Loading! ({str(self.agents[0].battery).rjust(2, '0')}) {('==' * max(0, len(self.draws) - 20)).ljust(40, ' ')}]',
+            end='\r')
         # Create a new draw object
         self.draws.append(
             Draw(playground=self.playground,
@@ -530,6 +533,5 @@ class Controller:
         Returns:
             bool: True if the game is over for the specified agent type, False otherwise.
         """
-        # TODO: change the end game condition
         return self.agents_reached_max_score() or all(
             agent.battery < 0 for agent in self.get_agents_by_type(agent_type))

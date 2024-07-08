@@ -18,7 +18,7 @@ class Chatbot(hugchat.ChatBot):
         sign = Login(username, password)
         cookies = sign.login(cookie_dir_path='./cookies/', save_cookies=True)
         hugchat.ChatBot.__init__(Chatbot._instance, cookies=cookies.get_dict())
-        Chatbot._instance.switch_llm(6)
+        Chatbot._instance.switch_llm(2)
 
     def __init__(self):
         # Avoid reinitialization if instance already exists
