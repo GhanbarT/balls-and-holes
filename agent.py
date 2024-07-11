@@ -352,7 +352,7 @@ class Agent:
             self.mark_position(map_, filled_hole_pos, FILLED_HOLE)
 
         # Mark the agent's position
-        self.mark_position(map_, self.position, self.get_label(), combine=True)
+        self.mark_position(map_, self.position, AGENT, combine=True)
 
         # Mark the positions of friends
         for friend in self.friends:
@@ -370,43 +370,36 @@ class Agent:
         """
 
         prompt = f"""
-        I am an agent in a game where the objective is to find orbs, pick them up, and place them into holes. My field of view is limited to the 8 cells surrounding me. I can only carry one orb at a time.
+I am an agent in a game where the objective is to find orbs(=balls), pick them up, and place them into holes. My field of view is limited to the 8 cells surrounding me. I can only carry one orb at a time.
+In order to pick up an orb, I have to enter the cell (house) where the orb is located. And also, to put the ball in a hole, I have to enter the hole house.
+Here are the possible states for each cell in the game:
+    1. `empty`: The cell is empty.
+    2. `hole`: The cell contains a hole.
+    3. `orb`: The cell contains an orb.
+    4. `filled_hole`: The cell contains a filled hole.
+    5. `agent-[id]`: The cell contains an agent with the specified ID.
+    6. `-`: There is no information about the cell.
 
-        Here are the possible states for each cell in the game:
-        1. `empty`: The cell is empty.
-        2. `hole`: The cell contains a hole.
-        3. `orb`: The cell contains an orb.
-        4. `filled_hole`: The cell contains a filled hole.
-        5. `agent-[id]`: The cell contains an agent with the specified ID.
-        6. `-`: There is no information about the cell.
+This is the current state of the game map (size {environment.yAxis}*{environment.xAxis}) as I remember it:
+{'\n'.join(' '.join('[' + format(str(item)).ljust(6, ' ') + ']' for item in row) for row in self.get_memory_based_map(environment))}
 
-        This is the current state of the game map as I remember it:
-        {self.get_memory_based_map(environment)}
-        Orb positions in my memory: {self.orb_positions}
-        Hole (not filled) positions in my memory: {self.hole_positions}
+I can perform 4 actions: [UP, LEFT, DOWN, RIGHT].
+Given that my flag in above map is <agent>, what is the best action for me to take to find the nearest {"hole" if self.has_ball else "orb"}?
 
-        I can perform 4 actions: [UP, LEFT, DOWN, RIGHT].
-        The position system in this map is (x, y) with indices starting from 0. For example, if I am at position (3, 2), it means I am in column 4 (x) and row 3 (y).
-        Given that my ID is <{self.agent_id}> and my current position is {self.position}, what is the best action for me to take to find the nearest {"hole" if self.has_ball else "orb"}?
-
-        Please note:
-        1. The map is {environment.yAxis} rows by {environment.xAxis} columns. There is no row -1 or more than {environment.yAxis - 1}, so just row value (Y) from 0 to {environment.yAxis - 1} is allowed.
-        2. The top-left cell of the map is at index (0, 0). For this cell, the UP and LEFT actions are not available. The RIGHT action corresponds to moving to the cell at (0, 1), and the DOWN action corresponds to moving to the cell at (1, 0), and so on for other cells.
-        3. If your previous answer did not affect the map, please provide a different answer.
-
-        Please provide your answer in the following format:
-        Answer: <action>
-        Reason: <reason>
+Please note: If your previous answer did not affect the map, please provide a different answer.
+Please provide your answer in the following format:
+Answer: <action>
+Reason: <reason>
         """
 
         error_counter = 0
         while self.useLLM:
-            error_counter = error_counter + 1
-            with open('output.txt', 'a') as f:
-                print(prompt, file=f)
+            error_counter += 1
 
             try:
                 answer = str(Chatbot().query(prompt, web_search=False))
+            except KeyboardInterrupt:
+                raise ValueError("Program interrupted by user.")
             except Exception as e:
                 if error_counter > 3:
                     raise ValueError(e)
@@ -414,7 +407,7 @@ class Agent:
 
             direction = answer.split('\n')[0].replace('Answer: ', '').strip().upper()
             if direction not in ["UP", "LEFT", "DOWN", "RIGHT"]:
-                print(f"Invalid direction received from chatbot: {direction}")
+                print(f"Invalid action received from chatbot: {direction}")
                 continue
 
             new_position = self.position
@@ -429,9 +422,11 @@ class Agent:
             elif direction == "RIGHT":
                 new_position = (current_x + 1, current_y)
 
-            with open('output.txt', 'a') as f:
-                print(f'answer: {answer}, new position: {new_position}', file=f)
-                print('============================================', file=f)
+            if self.log_file:
+                with open(self.log_file, 'a') as f:
+                    print(prompt, file=f)
+                    print(f'answer: {answer} new position: {new_position}', file=f)
+                    print('='*70, file=f)
 
             if environment.is_valid_position(new_position):
                 self.target_position = new_position
@@ -653,7 +648,6 @@ class Agent:
             opposite_agent.is_new_road = True
             return False
         elif self.battery >= opposite_agent.battery:
-            # TODO: we can also set a condition for random target position
             self.change_direction_and_select_new_road(environment)
             return True
 

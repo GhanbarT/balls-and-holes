@@ -12,13 +12,13 @@ class Chatbot(hugchat.ChatBot):
         return cls._instance
 
     @staticmethod
-    def configure(username, password):
+    def configure(username, password, model=6):
         if Chatbot._instance is None:
             raise Exception("Chatbot instance is not created yet.")
         sign = Login(username, password)
         cookies = sign.login(cookie_dir_path='./cookies/', save_cookies=True)
         hugchat.ChatBot.__init__(Chatbot._instance, cookies=cookies.get_dict())
-        Chatbot._instance.switch_llm(2)
+        Chatbot._instance.switch_llm(model)
 
     def __init__(self):
         # Avoid reinitialization if instance already exists

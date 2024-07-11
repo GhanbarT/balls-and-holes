@@ -23,12 +23,14 @@ def print_guid(last_index=False) -> None:
 
 def v1(show_legends, show_info):
     controller.plot(legends=show_legends, info=show_info)
-    print("\nPress [⏎]/[Enter] for next step")
-    input()
-    while not controller.game_over():
-        controller.perceive_agents().next_round().plot(legends=show_legends, info=show_info)
+    if not args.chatbot:
         print("\nPress [⏎]/[Enter] for next step")
         input()
+    while not controller.game_over():
+        controller.perceive_agents().next_round().plot(legends=show_legends, info=show_info)
+        if not args.chatbot:
+            print("\nPress [⏎]/[Enter] for next step")
+            input()
 
     success_message = GREEN_HIGHLIGHT + "Agent completed the task successfully" + ENDC
     failure_message = RED_HIGHLIGHT + "Agent failed the task successfully" + ENDC
@@ -66,16 +68,17 @@ def parse_arguments():
     parser.add_argument('-info', action='store_true', help='Show Agents\' info (default: False)')
     parser.add_argument('-agents',
                         type=str,
-                        help='Agents\' positions and types (default: None).format:<x,y,type;x,y,type;...>.example: 0,0,1;6,4,2')
+                        help='Agents\' positions and types (default: None). format:<x,y,type;x,y,type;...>.example: 0,0,1;6,4,2')
     parser.add_argument('-log', type=str, help='Log file name (default: None)')
-    parser.add_argument('-no-chatbot', dest='chatbot', default=True, action='store_false', help='dont use LLM chatbot as core')
     parser.add_argument('-phased',
                         default=False,
                         action='store_true',
-                        help='Use phased version of the game. In this version, it is not possible to return to the previous stage (default: False)')
+                        help='Use phased version of the game. In this version, it is not possible to navigate between steps (default: False)')
+    parser.add_argument('-no-chatbot', dest='chatbot', default=True, action='store_false', help='dont use LLM chatbot as core')
+    parser.add_argument('-model', type=int, default=6, help='Model number for the chatbot (default: 6)')
     parser.add_argument('-username', type=str, default=None, help='Username for the chatbot (default: None)')
     parser.add_argument('-password', type=str, default=None, help='Password for the chatbot (default: None)')
-    parser.add_argument('-environment-variable', dest='envar', default=False, action='store_true',
+    parser.add_argument('-use-env-var', dest='envar', default=False, action='store_true',
                         help='Use environment variable for login(default: False)')
     parser.add_argument('-seed',
                         type=int,
@@ -96,12 +99,14 @@ def initialize_playground_and_controller(args):
 
 
 def configure_chatbot(args):
+    if not args.chatbot:
+        return
     chatbot_username = os.getenv('CHATBOT_USERNAME') if args.envar else args.username
     chatbot_password = os.getenv('CHATBOT_PASSWORD') if args.envar else args.password
-    if args.chatbot and not (chatbot_username and chatbot_password):
+    if not (chatbot_username and chatbot_password):
         raise ValueError("Error: Chatbot username or password environment variables are not set.")
 
-    Chatbot().configure(username=chatbot_username, password=chatbot_password)
+    Chatbot().configure(username=chatbot_username, password=chatbot_password, model=args.model)
 
 
 if __name__ == '__main__':
