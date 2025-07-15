@@ -5,7 +5,7 @@ from typing import Tuple, Optional, Set, List, Union, TYPE_CHECKING
 import uuid
 
 from chatbot import Chatbot
-from consts import UP, RIGHT, DOWN, LEFT, AGENT, EMPTY, ORB, HOLE, FILLED_HOLE, LOCK, GONE, VISITED
+from consts import UP, RIGHT, DOWN, LEFT, AGENT, EMPTY, BALL, HOLE, FILLED_HOLE, LOCK, GONE, VISITED
 from utils import get_new_position
 
 if TYPE_CHECKING:
@@ -48,7 +48,7 @@ class Agent:
 
         # saved list positions
         self.hole_positions: list[Tuple[int, int]] = list()
-        self.orb_positions: list[Tuple[int, int]] = list()
+        self.ball_positions: list[Tuple[int, int]] = list()
         self.filled_hole_positions: Set[Tuple[int, int]] = set()
         self.filled_by_me_hole_positions: Set[Tuple[int, int]] = set()
 
@@ -56,7 +56,7 @@ class Agent:
         self.is_a_random_target: bool = False
         self.is_new_road: bool = False
 
-        # We use a common list for orbs and holes locked target positions (don't lock random target position)
+        # We use a common list for balls and holes locked target positions (don't lock random target position)
         # I think this is enough and there will be no need to have two different lists
         self.locked_positions: list[Tuple[int, int]] = list()
 
@@ -116,10 +116,10 @@ class Agent:
         # self.target_position = None
         if self.has_ball:
             return False
-        if environment.pick_orb(self.position):
+        if environment.pick_ball(self.position):
             self.has_ball = True
-            self.orb_positions.remove(self.position)
-            self.inform_friends_v2(ORB, -1, [self.position])
+            self.ball_positions.remove(self.position)
+            self.inform_friends_v2(BALL, -1, [self.position])
             return True
         return False
 
@@ -142,7 +142,7 @@ class Agent:
         # check if the hole is filled by the agent's team friends then don't steal the ball
         if filler_agent_id == self.agent_id or filler_agent_id in [friend.agent_id for friend in self.friends]:
             return False
-        if not environment.throw_orb_from_hole(self.position):
+        if not environment.throw_ball_from_hole(self.position):
             return False
 
         self.filled_hole_positions.remove(self.position)
@@ -165,7 +165,7 @@ class Agent:
         if not self.has_ball:
             return False
 
-        if environment.place_orb(self.position, self):
+        if environment.place_ball(self.position, self):
             self.has_ball = False
             self.hole_positions.remove(self.position)
             self.filled_by_me_hole_positions.add(self.position)
@@ -185,7 +185,7 @@ class Agent:
 
     def update_item_positions(self) -> None:
         """
-        Updates the positions of the items (orbs and holes) that the agent can see.
+        Updates the positions of the items (balls and holes) that the agent can see.
 
         This method should be called after the agent's visibility grid is updated.
         """
@@ -199,8 +199,8 @@ class Agent:
                 # Calculate the actual position of the cell in the playground
                 env_x, env_y = top_left_x + j, top_left_y + i
                 self.visited_cells.add((env_x, env_y))
-                if ORB in self.visibility[i][j] and (env_x, env_y) not in self.orb_positions:
-                    self.orb_positions.append((env_x, env_y))
+                if BALL in self.visibility[i][j] and (env_x, env_y) not in self.ball_positions:
+                    self.ball_positions.append((env_x, env_y))
                 if HOLE in self.visibility[i][j] and (env_x, env_y) not in self.hole_positions:
                     self.hole_positions.append((env_x, env_y))
 
@@ -209,9 +209,9 @@ class Agent:
                     if (env_x, env_y) in self.hole_positions:
                         self.hole_positions.remove((env_x, env_y))
 
-        # we can send all data (orb, hole and filled hole) to friends here, is it a good idea? or just send new items ...
+        # we can send all data (ball, hole and filled hole) to friends here, is it a good idea? or just send new items ...
         self.inform_friends_v2(VISITED, 1, list(self.visited_cells))
-        self.inform_friends_v2(ORB, 1, self.orb_positions)
+        self.inform_friends_v2(BALL, 1, self.ball_positions)
         self.inform_friends_v2(HOLE, 1, self.hole_positions)
         self.inform_friends_v2(FILLED_HOLE, 1, list(self.filled_hole_positions))
 
@@ -237,7 +237,7 @@ class Agent:
         return self.friends
 
     def receive_friends_info_v2(self,
-                                info_type: [ORB, HOLE, FILLED_HOLE, LOCK, GONE, VISITED],
+                                info_type: [BALL, HOLE, FILLED_HOLE, LOCK, GONE, VISITED],
                                 status: [-1, 1],
                                 positions: List[Tuple[int, int]]) -> 'Agent':
         """
@@ -245,7 +245,7 @@ class Agent:
 
         Args:
             info_type: A string representing the type of information to be received.
-                    types: ORB, HOLE, FILLED_HOLE, LOCK, GONE, VISITED
+                    types: BALL, HOLE, FILLED_HOLE, LOCK, GONE, VISITED
             status: A integer representing the status of the information
                     1: add the information to the friend's knowledge
                     -1: remove the information from the friend's knowledge
@@ -259,8 +259,8 @@ class Agent:
                 self.gone_cells.update(positions)
             if info_type == VISITED:
                 self.visited_cells.update(positions)
-            elif info_type == ORB:
-                self.orb_positions += [pos for pos in positions if pos not in self.orb_positions]
+            elif info_type == BALL:
+                self.ball_positions += [pos for pos in positions if pos not in self.ball_positions]
             elif info_type == HOLE:
                 self.hole_positions += [pos for pos in positions if pos not in self.hole_positions]
             elif info_type == FILLED_HOLE:
@@ -270,8 +270,8 @@ class Agent:
             elif info_type == LOCK:
                 self.locked_positions += positions
         elif status == -1:
-            if info_type == ORB:
-                self.orb_positions = [pos for pos in self.orb_positions if pos not in positions]
+            if info_type == BALL:
+                self.ball_positions = [pos for pos in self.ball_positions if pos not in positions]
             elif info_type == LOCK:
                 self.locked_positions = [pos for pos in self.locked_positions if pos not in positions]
             # we don't have visited, hole and filled hole cell functionality
@@ -308,7 +308,7 @@ class Agent:
         return self
 
     def inform_friends_v2(self,
-                          info_type: [ORB, HOLE, FILLED_HOLE, GONE, VISITED],
+                          info_type: [BALL, HOLE, FILLED_HOLE, GONE, VISITED],
                           status: [-1, 1],
                           positions: List[Tuple[int, int]]) -> 'Agent':
         """
@@ -316,7 +316,7 @@ class Agent:
 
         Args:
             info_type: A string representing the type of information to be sent
-                    types: ORB, HOLE, FILLED_HOLE, LOCK, GONE, VISITED
+                    types: BALL, HOLE, FILLED_HOLE, LOCK, GONE, VISITED
             status: A integer representing the status of the information
                     1: add the information to the friend's knowledge
                     -1: remove the information from the friend's knowledge
@@ -343,9 +343,9 @@ class Agent:
         map_ = [[(EMPTY if (j, i) in self.visited_cells else '-') for j in range(environment.xAxis)] for i in
                 range(environment.yAxis)]
 
-        # Mark orbs, holes, and filled holes
-        for orb_pos in self.orb_positions:
-            self.mark_position(map_, orb_pos, ORB)
+        # Mark balls, holes, and filled holes
+        for ball_pos in self.ball_positions:
+            self.mark_position(map_, ball_pos, BALL)
         for hole_pos in self.hole_positions:
             self.mark_position(map_, hole_pos, HOLE)
         for filled_hole_pos in self.filled_hole_positions:
@@ -365,17 +365,17 @@ class Agent:
         """
         Updates the agent's target position.
 
-        The agent sets the target to the nearest hole if the agent has a ball, or the nearest orb if the agent does not have a ball.
+        The agent sets the target to the nearest hole if the agent has a ball, or the nearest ball if the agent does not have a ball.
         If there are no available targets, it sets a random position in the playground as the target.
         """
 
         prompt = f"""
-I am an agent in a game where the objective is to find orbs(=balls), pick them up, and place them into holes. My field of view is limited to the 8 cells surrounding me. I can only carry one orb at a time.
-In order to pick up an orb, I have to enter the cell (house) where the orb is located. And also, to put the ball in a hole, I have to enter the hole house.
+I am an agent in a game where the objective is to find balls, pick them up, and place them into holes. My field of view is limited to the 8 cells surrounding me. I can only carry one ball at a time.
+In order to pick up a ball, I have to enter the cell (house) where the ball is located. And also, to put the ball in a hole, I have to enter the hole house.
 Here are the possible states for each cell in the game:
     1. `empty`: The cell is empty.
     2. `hole`: The cell contains a hole.
-    3. `orb`: The cell contains an orb.
+    3. `ball`: The cell contains a ball.
     4. `filled_hole`: The cell contains a filled hole.
     5. `agent-[id]`: The cell contains an agent with the specified ID.
     6. `-`: There is no information about the cell.
@@ -384,7 +384,7 @@ This is the current state of the game map (size {environment.yAxis}*{environment
 {'\n'.join(' '.join('[' + format(str(item)).ljust(6, ' ') + ']' for item in row) for row in self.get_memory_based_map(environment))}
 
 I can perform 4 actions: [UP, LEFT, DOWN, RIGHT].
-Given that my flag in above map is <agent>, what is the best action for me to take to find the nearest {"hole" if self.has_ball else "orb"}?
+Given that my flag in above map is <agent>, what is the best action for me to take to find the nearest {"hole" if self.has_ball else "ball"}?
 
 Please note: If your previous answer did not affect the map, please provide a different answer.
 Please provide your answer in the following format:
@@ -432,8 +432,8 @@ Reason: <reason>
                 self.target_position = new_position
                 return
 
-        # if the agent has a ball, the target is the nearest hole; otherwise, it is the nearest orb
-        target_list = self.hole_positions if self.has_ball else self.orb_positions
+        # if the agent has a ball, the target is the nearest hole; otherwise, it is the nearest ball
+        target_list = self.hole_positions if self.has_ball else self.ball_positions
 
         # if item in target position was removed by other agent, we must select new target
         if self.target_position not in target_list and self.is_a_random_target is False:
@@ -503,7 +503,7 @@ Reason: <reason>
         Allows the agent to interact with its environment.
 
         If the agent has a ball and is on a hole cell, it puts the ball in the hole.
-        If the agent does not have a ball and is on an orb cell, it takes the ball.
+        If the agent does not have a ball and is on a ball cell, it takes the ball.
         If the agent's current position is the target position, it resets the target position.
 
         Args:
@@ -513,17 +513,17 @@ Reason: <reason>
             A boolean value indicating whether the agent interacted with the environment. Returns True if the agent interacted with the environment,
             and False otherwise.
         """
-        # remove the orb from the orb_positions list if the cell is empty and there is an orb in the cell,
-        # for example, another agent has taken the orb or the orb has been switched position
+        # remove the ball from the ball_positions list if the cell is empty and there is a ball in the cell,
+        # for example, another agent has taken the ball or the ball has been switched position
         self.steal_ball_from_hole(environment)
-        if self.position in self.orb_positions and not environment.is_a_orb_cell(self.position):
-            self.orb_positions.remove(self.position)
-            self.inform_friends_v2(ORB, -1, [self.position])
+        if self.position in self.ball_positions and not environment.is_a_ball_cell(self.position):
+            self.ball_positions.remove(self.position)
+            self.inform_friends_v2(BALL, -1, [self.position])
 
         if self.has_ball and environment.is_a_hole_cell(self.position):
             self.reset_target_position()
             return self.put_ball_in_hole(environment)
-        if not self.has_ball and environment.is_a_orb_cell(self.position):
+        if not self.has_ball and environment.is_a_ball_cell(self.position):
             self.reset_target_position()
             return self.take_ball(environment)
 
@@ -537,7 +537,7 @@ Reason: <reason>
         Defines the agent's actions in its environment.
 
         The agent first updates its item positions. Then, it checks if it can interact with the environment.
-        If the agent successfully interacts with the environment (i.e., picks up an orb or fills a hole), it updates the visibility of the playground and its item positions.
+        If the agent successfully interacts with the environment (i.e., picks up a ball or fills a hole), it updates the visibility of the playground and its item positions.
         If the agent does not interact with the environment, it updates its target position and moves towards it.
 
         The agent moves towards the target by turning in the appropriate direction and taking a step forward.

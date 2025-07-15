@@ -4,8 +4,8 @@ from copy import deepcopy
 from typing import List, Tuple, Optional, TYPE_CHECKING
 
 import bcolors
-from consts import UUID_LEN, HAVING_ORB, ORB_CELL, HOLE_CELL, FILLED_HOLE_CELL, EMPTY, OBSTACLE, ICONS, AGENT, \
-    CELL_COLORS, ARROWS, HOLE, ORB, FILLED_HOLE, UP
+from consts import UUID_LEN, HAVING_BALL, BALL_CELL, HOLE_CELL, FILLED_HOLE_CELL, EMPTY, OBSTACLE, ICONS, AGENT, \
+    CELL_COLORS, ARROWS, HOLE, BALL, FILLED_HOLE, UP
 
 from agent import Agent
 from utils import clear_screen
@@ -99,8 +99,8 @@ class Draw:
         if legends:
             print(
                 f'{bcolors.LIGHT_MAGENTA_HIGHLIGHT}----Legends----{bcolors.ENDC}'
-                f'\n-> {HAVING_ORB}Having Ball{bcolors.ENDC}'
-                f'\n-> {ORB_CELL}on Ball Cell{bcolors.ENDC}'
+                f'\n-> {HAVING_BALL}Having Ball{bcolors.ENDC}'
+                f'\n-> {BALL_CELL}on Ball Cell{bcolors.ENDC}'
                 f'\n-> {HOLE_CELL}on Hole Cell{bcolors.ENDC}'
                 f'\n-> {FILLED_HOLE_CELL}on Filled Hole Cell{bcolors.ENDC}')
 
@@ -164,14 +164,14 @@ class Draw:
 
             agent_id = factors[-1][len(AGENT) + 1:]
             agent = Controller.find_agent(self.agents, agent_id)
-            text_color = HAVING_ORB if agent.has_ball else ''
+            text_color = HAVING_BALL if agent.has_ball else ''
 
             if len(factors) > 1:
                 text_color += CELL_COLORS.get(factors[0], '')
 
             return text_color + ARROWS[agent.direction] + ICONS[AGENT] + agent_id[0:2] + bcolors.ENDC
 
-        if factor == HOLE or factor == ORB:
+        if factor == HOLE or factor == BALL:
             return ICONS[factor] + ' ' if random.choice([False, random_space]) else ' ' + ICONS[factor]
 
         if factor == FILLED_HOLE:
@@ -341,13 +341,13 @@ class Controller:
 
     def start(self) -> 'Controller':
         """
-        Starts the game by placing holes and orbs, and creating a new draw object.
+        Starts the game by placing holes and balls, and creating a new draw object.
         """
         if self.log_file:
             with open(self.log_file, 'w'):
                 pass
 
-        self.playground.place_holes_and_orbs()
+        self.playground.place_holes_and_balls()
         self.introduce_friends()
 
         self.draws.append(
@@ -498,9 +498,9 @@ class Controller:
         Calculates the maximum possible score in the game.
 
         Returns:
-            int: The maximum possible score, which is the minimum of the number of holes and orbs in the playground.
+            int: The maximum possible score, which is the minimum of the number of holes and balls in the playground.
         """
-        return min(self.playground.num_holes, self.playground.num_orbs)
+        return min(self.playground.num_holes, self.playground.num_balls)
 
     def is_last_draw_index(self) -> bool:
         """

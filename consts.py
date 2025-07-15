@@ -2,8 +2,8 @@ import bcolors
 
 UUID_LEN = 36
 
-HAVING_ORB = bcolors.RED
-ORB_CELL = bcolors.CYAN_HIGHLIGHT
+HAVING_BALL = bcolors.RED
+BALL_CELL = bcolors.CYAN_HIGHLIGHT
 HOLE_CELL = bcolors.YELLOW_HIGHLIGHT
 FILLED_HOLE_CELL = bcolors.GREEN_HIGHLIGHT
 
@@ -22,7 +22,7 @@ BOX_CROSS = '╬'
 EMPTY = 'empty'
 AGENT = 'agent'
 HOLE = 'hole'
-ORB = 'orb'
+BALL = 'ball'
 FILLED_HOLE = 'filled'
 OBSTACLE = 'obstacle'
 OUTSIDE = 'out'
@@ -36,7 +36,7 @@ DOWN = 'down'
 LEFT = 'left'
 
 CELL_COLORS = {
-    ORB: ORB_CELL,
+    BALL: BALL_CELL,
     HOLE: HOLE_CELL,
     FILLED_HOLE: FILLED_HOLE_CELL
 }
@@ -45,7 +45,7 @@ ICONS = {
     EMPTY: ' ' * 5,
     AGENT: '🤖',
     HOLE: ' 🕳️ ',
-    ORB: ' ⚾ ',
+    BALL: ' ⚾ ',
     FILLED_HOLE: ' ⛳',
     OBSTACLE: '█' * 5
 }

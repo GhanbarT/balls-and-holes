@@ -91,7 +91,7 @@ def initialize_playground_and_controller(args):
     RandomSeed().set_seed(args.seed)
 
     dim_x, dim_y = map(int, args.dim.split(','))
-    playground = Playground(dimensions=(dim_x, dim_y), num_orbs=args.ball, num_holes=args.hole)
+    playground = Playground(dimensions=(dim_x, dim_y), num_balls=args.ball, num_holes=args.hole)
     controller = Controller(playground=playground, log_file=args.log)
     controller.create_agents(args.agents, 1, chatbot=args.chatbot)
     controller.start()
