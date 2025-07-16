@@ -1,7 +1,7 @@
 import random_seed
 from typing import List, Tuple, Set, TYPE_CHECKING
 
-from consts import EMPTY, HOLE, ORB, FILLED_HOLE, UP, RIGHT, DOWN, LEFT, AGENT
+from consts import EMPTY, HOLE, BALL, FILLED_HOLE, UP, RIGHT, DOWN, LEFT, AGENT
 from utils import get_new_position
 
 if TYPE_CHECKING:
@@ -15,7 +15,7 @@ class Playground:
     def __init__(self,
                  dimensions: Tuple[int, int] = (5, 5),
                  num_holes: int = 5,
-                 num_orbs: int = 5,
+                 num_balls: int = 5,
                  field_of_view: int = 3):
         self.dimensions = dimensions
         self.xAxis, self.yAxis = dimensions
@@ -23,8 +23,8 @@ class Playground:
 
         self.agent_start_positions: Set[Tuple[int, int]] = set()  # Store unique agent positions
         self.num_holes = num_holes
-        self.num_orbs = num_orbs
-        self.orb_positions = set()
+        self.num_balls = num_balls
+        self.ball_positions = set()
         self.holes = {}
 
         self.field_of_view = field_of_view
@@ -59,9 +59,9 @@ class Playground:
         empty_positions = [(i, j) for i in range(self.xAxis) for j in range(self.yAxis) if self.grid[j][i] == EMPTY]
         return random.choice(empty_positions)
 
-    def place_holes_and_orbs(self) -> None:
+    def place_holes_and_balls(self) -> None:
         """
-        Randomly places holes and orbs (soil) on the grid, avoiding agent positions.
+        Randomly places holes and balls (soil) on the grid, avoiding agent positions.
 
         The algorithm ensures that each position is unique and not already occupied by an agent.
         """
@@ -77,13 +77,13 @@ class Playground:
             self.grid[y][x] = HOLE
             self.holes[(x, y)] = ''
 
-        # Place orbs
-        for i in range(self.num_orbs):
+        # Place balls
+        for i in range(self.num_balls):
             if len(available_positions) == 0:
                 break
             x, y = available_positions.pop(0)
-            self.grid[y][x] = ORB
-            self.orb_positions.add((x, y))
+            self.grid[y][x] = BALL
+            self.ball_positions.add((x, y))
 
     def get_surrounding_cells(self, position: Tuple[int, int], field_of_view: int = None) -> List[List[str]]:
         """
@@ -166,77 +166,77 @@ class Playground:
         self.grid[y][x] = current_cell_state + ',' + agent.get_label()
         return True
 
-    def pick_orb(self, position: Tuple[int, int]) -> bool:
+    def pick_ball(self, position: Tuple[int, int]) -> bool:
         """
-        Picks up an orb from a given position in the playground.
+        Picks up a ball from a given position in the playground.
 
         Args:
             position: A tuple containing two integers representing row and column indices.
 
         Returns:
-            A boolean value indicating whether the operation was successful. Returns True if an orb was successfully picked up,
-            and False if the operation failed (for example, if the desired position is not valid or there is no orb at the position).
+            A boolean value indicating whether the operation was successful. Returns True if a ball was successfully picked up,
+            and False if the operation failed (for example, if the desired position is not valid or there is no ball at the position).
         """
         if not self.is_valid_position(position):
             return False
         current_cell_state = self.get_cell_state(position)
-        if ORB not in current_cell_state:
+        if BALL not in current_cell_state:
             return False
 
         x_old, y_old = position
-        self.grid[y_old][x_old] = current_cell_state.replace(ORB, EMPTY)
+        self.grid[y_old][x_old] = current_cell_state.replace(BALL, EMPTY)
 
-        # remove current orb
-        self.orb_positions.remove(position)
+        # remove current ball
+        self.ball_positions.remove(position)
         return True
 
-    def switch_orb_positions(self) -> None:
+    def switch_ball_positions(self) -> None:
         """
-        Randomly switches the positions of the orbs in the playground.
+        Randomly switches the positions of the balls in the playground.
 
-        This method iterates over each orb in the playground. For each orb, it randomly selects a direction (up, right, down, or left)
-        and attempts to move the orb in that direction. If the new position is valid and not already occupied by another orb or a filled hole,
-        the orb is moved to the new position.
+        This method iterates over each ball in the playground. For each ball, it randomly selects a direction (up, right, down, or left)
+        and attempts to move the ball in that direction. If the new position is valid and not already occupied by another ball or a filled hole,
+        the ball is moved to the new position.
         """
-        orb_position_temp = set(self.orb_positions)
-        for orb in orb_position_temp:
+        ball_position_temp = set(self.ball_positions)
+        for ball in ball_position_temp:
             direction = random.choice([UP, RIGHT, DOWN, LEFT])
             prob = random.random()
             if prob > 0.1:
                 continue
 
-            x_old, y_old = orb
-            new_position = get_new_position(direction, orb)
+            x_old, y_old = ball
+            new_position = get_new_position(direction, ball)
             if not self.is_valid_position(new_position):
                 continue
 
             x_new, y_new = new_position
             new_cell_label = self.get_cell_state(new_position)
-            # if new position is orb or filled hole cell nothing change
-            if ORB in new_cell_label or FILLED_HOLE in new_cell_label:
+            # if new position is ball or filled hole cell nothing change
+            if BALL in new_cell_label or FILLED_HOLE in new_cell_label:
                 continue
 
             if EMPTY in new_cell_label:
-                self.grid[y_old][x_old] = self.grid[y_old][x_old].replace(ORB, EMPTY)
-                self.grid[y_new][x_new] = self.grid[y_new][x_new].replace(EMPTY, ORB)
-                self.orb_positions.remove(orb)
-                self.orb_positions.add(new_position)
+                self.grid[y_old][x_old] = self.grid[y_old][x_old].replace(BALL, EMPTY)
+                self.grid[y_new][x_new] = self.grid[y_new][x_new].replace(EMPTY, BALL)
+                self.ball_positions.remove(ball)
+                self.ball_positions.add(new_position)
             elif HOLE in new_cell_label:
-                self.grid[y_old][x_old] = self.grid[y_old][x_old].replace(ORB, EMPTY)
+                self.grid[y_old][x_old] = self.grid[y_old][x_old].replace(BALL, EMPTY)
                 self.grid[y_new][x_new] = self.grid[y_new][x_new].replace(HOLE, FILLED_HOLE)
-                self.orb_positions.remove(orb)
+                self.ball_positions.remove(ball)
 
-    def place_orb(self, position: Tuple[int, int], agent: 'Agent') -> bool:
+    def place_ball(self, position: Tuple[int, int], agent: 'Agent') -> bool:
         """
-        Places an orb at a given position in the playground.
+        Places a ball at a given position in the playground.
 
         Args:
             position: A tuple containing two integers representing row and column indices.
-            agent: The Agent object that is placing the orb.
+            agent: The Agent object that is placing the ball.
 
         Returns:
-            A boolean value indicating whether the operation was successful. Returns True if an orb was successfully placed,
-            and False if the operation failed (for example, if the desired position is not valid, the agent does not have an orb, or there is no hole at the position).
+            A boolean value indicating whether the operation was successful. Returns True if a ball was successfully placed,
+            and False if the operation failed (for example, if the desired position is not valid, the agent does not have a ball, or there is no hole at the position).
         """
         if not self.is_valid_position(position):
             return False
@@ -250,20 +250,20 @@ class Playground:
         self.grid[y][x] = current_cell_state.replace(HOLE, FILLED_HOLE)
         self.holes[(x, y)] = agent.agent_id
 
-        # switch position of other orbs
-        self.switch_orb_positions()
+        # switch position of other balls
+        self.switch_ball_positions()
         return True
 
-    def throw_orb_from_hole(self, position: Tuple[int, int]) -> bool:
+    def throw_ball_from_hole(self, position: Tuple[int, int]) -> bool:
         """
-        Steals an orb from a hole at a given position in the playground and put the orb in a random empty position.
+        Steals a ball from a hole at a given position in the playground and put the ball in a random empty position.
 
         Args:
             position: A tuple containing two integers representing row and column indices.
 
         Returns:
-            A boolean value indicating whether the operation was successful. Returns True if an orb was successfully stolen,
-            and False if the operation failed (for example, if the desired position is not valid, the agent does not have an orb, or there is no hole at the position).
+            A boolean value indicating whether the operation was successful. Returns True if a ball was successfully stolen,
+            and False if the operation failed (for example, if the desired position is not valid, the agent does not have a ball, or there is no hole at the position).
         """
         if not self.is_valid_position(position):
             return False
@@ -275,11 +275,11 @@ class Playground:
         x, y = position
         self.grid[y][x] = current_cell_state.replace(FILLED_HOLE, HOLE)
         self.holes[(x, y)] = ''
-        # put orb in a random position
-        orb_position = self.get_random_empty_position()
-        x, y = orb_position
-        self.grid[y][x] = ORB
-        self.orb_positions.add(orb_position)
+        # put ball in a random position
+        ball_position = self.get_random_empty_position()
+        x, y = ball_position
+        self.grid[y][x] = BALL
+        self.ball_positions.add(ball_position)
 
         return True
 
@@ -306,18 +306,18 @@ class Playground:
         # (check if position is an obstacle)?
         return True
 
-    def is_a_orb_cell(self, position: Tuple[int, int]) -> bool:
+    def is_a_ball_cell(self, position: Tuple[int, int]) -> bool:
         """
-        Checks if a given position in the playground is an orb cell.
+        Checks if a given position in the playground is a ball cell.
 
         Args:
             position: A tuple containing two integers representing row and column indices.
 
         Returns:
-            A boolean value indicating whether the position is an orb cell. Returns True if the position contains an orb,
+            A boolean value indicating whether the position is a ball cell. Returns True if the position contains a ball,
             and False otherwise.
         """
-        return ORB in self.get_cell_state(position)
+        return BALL in self.get_cell_state(position)
 
     def is_a_hole_cell(self, position: Tuple[int, int]) -> bool:
         """
@@ -336,7 +336,7 @@ class Playground:
 
         """
         Returns the full map for the agent, based on the agent's memory rather than the actual state of the playground.
-        This includes the agent's view of orbs, holes, filled holes, and the positions of friends.
+        This includes the agent's view of balls, holes, filled holes, and the positions of friends.
 
         Args:
             agent: The Agent object for which the map is generated.
@@ -346,9 +346,9 @@ class Playground:
         """
         map_ = [[EMPTY for _ in range(self.xAxis)] for _ in range(self.yAxis)]
 
-        # Mark orbs as per the agent's memory
-        for orb_pos in agent.orb_positions:
-            map_[orb_pos[1]][orb_pos[0]] = ORB
+        # Mark balls as per the agent's memory
+        for ball_pos in agent.ball_positions:
+            map_[ball_pos[1]][ball_pos[0]] = BALL
 
         # Mark holes as per the agent's memory
         for hole_pos in agent.hole_positions:

@@ -2,7 +2,7 @@
 
 ## Description ⚾️🕳️🤖⛳️
 
-This project is a python game simulation where agents interact with their environment. Agents can pick up orbs, fill
+This project is a python game simulation where agents interact with their environment. Agents can pick up balls, fill
 holes, and
 interact with other agents. The game is played in rounds, and agents can perceive their surroundings, make decisions,
 and take actions based on their perceptions.
@@ -51,9 +51,9 @@ This project is organized into several modules:
 
 - `controller.py`: This module contains the `Controller` class, which manages the game simulation. It handles the game rounds, agent actions, and game state.
 
-- `playground.py`: This module defines the `Playground` class, which represents the game environment. It includes the dimensions of the playground, the number of orbs and holes, and the positions of the agents.
+- `playground.py`: This module defines the `Playground` class, which represents the game environment. It includes the dimensions of the playground, the number of balls and holes, and the positions of the agents.
 
-- `agent.py`: This module defines the `Agent` class, which represents an agent in the game. Each agent has a position, a direction, a field of view, and can interact with the environment by picking up orbs and filling holes. Agents can also communicate with each other to share information about the environment.
+- `agent.py`: This module defines the `Agent` class, which represents an agent in the game. Each agent has a position, a direction, a field of view, and can interact with the environment by picking up balls and filling holes. Agents can also communicate with each other to share information about the environment.
 
 - `utils.py`: This module contains utility functions used throughout the project, such as `get_key_action` which is used to get the user's input for navigating through the game rounds.
 
